@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf8">
+<title>Percol video annotation</title>
+<link rel="stylesheet" type="text/css" href="annotate.css">
+<script lang="javascript" src="jquery-1.10.2.min.js"></script>
+<script lang="javascript" src="annotate.js"></script>
+<script lang="javascript" src="videos.js"></script>
+<script id="data-source" lang="javascript"></script>
+</head>
+<body>
+<div id="navbar">
+    <span>View: <input type="radio" name="view" value="by-shot" checked>By shot <input type="radio" name="view" value="by-label">By label</span>
+    <span><select id="show"></select></span>
+    <span>Size: <select id="size"></select></span>
+    <button id="export" type="button">Export</button>
+</div>
+<div id="by-shot">
+    <div id="shots"></div>
+</div>
+<div id="by-label">
+    <div id="global-label-div">Label: <select id="global-label"></select></div>
+    <div id="annotated-div">Annotated:<div id="annotated"></div></div>
+    <div id="unannotated-dev">Unannotated:<div id="unannotated"></div></div>
+</div>
+</body>
+</html>
