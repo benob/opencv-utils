@@ -4,9 +4,25 @@ if (typeof String.prototype.startsWith != 'function') {
     };
 }
 
+var Config = {
+    labels: ['<none>', 'presentateur', 'journaliste', 'invite', 'journaliste(face)+invite(dos)', 'reportage', 'graphiques', 'autre'],
+    split_types: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
+};
+
 function makeLabel(split, labels) {
     var cardinality = parseInt(split);
     return split + '=' + labels.slice(0, cardinality).join('+');
+}
+
+function exportAnnotation() {
+    var result = [];
+    for(var id in localStorage) {
+        if(id.startsWith('percol:')) {
+            var annotation = JSON.parse(localStorage[id]);
+            result.push(annotation);
+        }
+    }
+    return JSON.stringify(result);
 }
 
 function EventEmitter(type) {
@@ -32,10 +48,9 @@ function EventEmitter(type) {
 function Label(type) {
     EventEmitter.call(this, type);
     this.type = type;
-    this.labels = ['<none>', 'presentateur', 'journaliste', 'invite', 'journaliste(face)+invite(dos)', 'reportage', 'graphiques', 'autre'];
     this.dom = $('<select class="label"></select>');
-    for(var i in this.labels) {
-        this.dom.append($('<option></option>').attr('value', this.labels[i]).text(this.labels[i]));
+    for(var i in Config.labels) {
+        this.dom.append($('<option></option>').attr('value', Config.labels[i]).text(Config.labels[i]));
     }
     $(this.dom).change(function() {
         this.object.fire('change');
@@ -47,7 +62,7 @@ function Label(type) {
         $(this.dom).val(label);
     };
     this.setDefault = function() {
-        this.set(this.labels[0]);
+        this.set(Config.labels[0]);
     }
     this.setDefault();
     this.dom[0].object = this;
@@ -106,21 +121,19 @@ function ShotLabels(type) {
 function SplitSelector(type) {
     EventEmitter.call(this, type);
     this.type = type;
-    this.split_types = ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', 
-        '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'];
     this.splits = {};
     this.dom = $('<div class="splitselector"></div>');
-    for(var i in this.split_types) {
-        var split = $('<img>').attr('src', 'splits/' + this.split_types[i] + '.png')
-            .attr('name', this.split_types[i])
-            .attr('cardinality', parseInt(this.split_types[i]));
+    for(var i in Config.split_types) {
+        var split = $('<img>').attr('src', 'splits/' + Config.split_types[i] + '.png')
+            .attr('name', Config.split_types[i])
+            .attr('cardinality', parseInt(Config.split_types[i]));
         split.click(function() {
             $(this.parentNode).find('img').removeClass('selected');
             $(this).addClass('selected');
             this.parentNode.object.fire('change');
         });
         $(this.dom).append(split);
-        this.splits[this.split_types[i]] = split;
+        this.splits[Config.split_types[i]] = split;
     }
     this.set = function(name) {
         if(name in this.splits) {
@@ -129,7 +142,7 @@ function SplitSelector(type) {
         }
     };
     this.setDefault = function() {
-        this.set(this.split_types[0]);
+        this.set(Config.split_types[0]);
     }
     this.get = function() {
         var selected = $(this.dom).find('.selected');
@@ -147,6 +160,12 @@ function MostSimilar(type) {
     this.type = type;
     this.byLabel = {};
     this.dom = $('<div class="mostsimilar"></div>');
+    this.showLabel = function(label) {
+        $(this.dom).find('img').removeClass('selected');
+        $(this.dom).find('img').each(function(index, element) {
+            if($(element).attr('label') == label) $(element).addClass('selected');
+        });
+    };
     this.set = function(shot) {
         var video = shot.split('.')[0];
         var min = {};
@@ -175,16 +194,19 @@ function MostSimilar(type) {
         for(var i = 0; i < scored.length && i < 4; i++) {
             var target_shot = scored[i].shot;
             $(this.dom).append($('<img>')
+                    .addClass('thumbnail')
                     .attr('title', scored[i].label + '\ndistance: ' + scored[i].score + '\nshot: ' + scored[i].shot)
                     .attr('src', shotIndex[scored[i].shot].image)
-                    .attr('width', 1024 / 6)
-                    .attr('height', 576 / 6).click(function() {
-                        //load(target_shot);
-                        //save(shot);
+                    .attr('target_shot', target_shot)
+                    .attr('label', scored[i].label)
+                    .attr('shot', shot).click(function() {
+                        annotator.load($(this).attr('target_shot'));
+                        annotator.save($(this).attr('shot'));
+                        $(this).parent().find('img').removeClass('selected');
+                        $(this).addClass('selected');
                     }));
         }
-        console.log(scored);
-    }
+    };
 }
 
 function Annotator(type) {
@@ -206,7 +228,10 @@ function Annotator(type) {
         var annotation = {
             name: shot,
             split: this.splitSelector.get(),
-            labels: this.shotLabels.get()
+            labels: this.shotLabels.get(),
+            label: makeLabel(this.splitSelector.get(), this.shotLabels.get()),
+            annotator: $('#annotator').val(),
+            date: new Date(),
         };
         localStorage['percol:' + shot] = JSON.stringify(annotation);
     };
@@ -227,7 +252,7 @@ function Annotator(type) {
         this.load(shot);
     };
     this.get = function() {
-        return null;
+        return makeLabel(this.splitSelector.get(), this.shotLabels.get());
     };
     this.splitSelector.on('change', this, function(listener, target) {
         listener.save(listener.shotName);
@@ -240,7 +265,8 @@ function Annotator(type) {
     this.on('change', this, function(listener, target) {
         listener.shotLabels.set(listener.splitSelector.cardinality());
         $(listener.dom).find('.shotname').text(listener.shotName);
-        $(listener.dom).find('.textlabel').text(makeLabel(listener.splitSelector.get(), listener.shotLabels.get()));
+        $(listener.dom).find('.textlabel').text(listener.get());
+        listener.mostSimilar.showLabel(listener.get());
     });
     this.dom[0].object = this;
 }
@@ -248,6 +274,7 @@ function Annotator(type) {
 var shotIndex = {};
 var images = [];
 var sim = [];
+var annotator = null;
 
 function basename(path) {
     var tokens = path.split('/');
@@ -255,8 +282,18 @@ function basename(path) {
 }
 
 $(function() {
-    var annotator = new Annotator();
+    annotator = new Annotator();
     $('#by-shot').append(annotator.dom);
+
+    $("input[name='view']").change(function() {
+        if($(this).val() == 'by-shot') {
+        $('#by-shot').show();
+        $('#by-label').hide();
+        } else if($(this).val() == 'by-label') {
+        $('#by-shot').hide();
+        $('#by-label').show();
+        }
+    });
 
     // populate videos
     $('#show').empty();
@@ -268,7 +305,10 @@ $(function() {
         shotIndex = {};
         callback = function() {
             $('#shots').empty();
+            $('#by-label-shots').empty();
             for(var i in images) {
+                shotIndex[basename(images[i])] = {id: i, image: datadir + '/' + images[i]};
+                // by shot
                 var image = $('<img class="shot">');
                 image.click(function(event) {
                     $('.shot').removeClass('selected');
@@ -278,12 +318,22 @@ $(function() {
                 $(image).attr('src', datadir + '/' + images[i])
                     .attr('name', images[i]);
                 $('#shots').append(image);
-                shotIndex[basename(images[i])] = {id: i, image: datadir + '/' + images[i]};
+                // by label
+                $('#unlabeled-shots').append(image.clone()
+                    .attr('src', datadir + '/' + images[i] + '.192')
+                    .removeClass('shot')
+                    .addClass('thumbnail')
+                    .click(function() {
+                        $(this).toggleClass('selected');
+                }));
             }
-            console.log(show);
         };
         $('#shots').empty();
         $(document.head).append($('<script lang="javascript">').attr('src', 'data/' + show + '.js'));
     });
     $('#show').change();
+
+    $('#export').click(function() {
+        window.open('data:application/json;charset=utf-8,' + exportAnnotation());
+    });
 });
