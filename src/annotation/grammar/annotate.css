@@ -10,7 +10,6 @@
 }
 
 #by-label {
-    visibility: hidden;
     margin-top: 3em;
 }
 
@@ -57,11 +56,21 @@
     border: 5px solid green;
 }
 
-.mostsimilar img {
+img.thumbnail {
+    width: 192px;
+    height: 108px;
     border: 5px solid white;
 }
 
-.mostsimilar img.selected {
+img.thumbnail.selected {
     border: 5px solid red;
+}
+
+#labeled-shots {
+    height: 212px;
+    overflow-x:scroll;
+}
+
+#unlabeled-shots {
 }
 
