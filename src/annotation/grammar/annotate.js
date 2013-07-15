@@ -5,7 +5,7 @@ if (typeof String.prototype.startsWith != 'function') {
 }
 
 var Config = {
-    labels: ['<none>', 'presentateur', 'journaliste', 'invite', 'journaliste(face)+invite(dos)', 'reportage', 'graphiques', 'autre'],
+    labels: ['presentateur', 'journaliste', 'invite', 'journaliste(face)+invite(dos)', 'reportage', 'graphiques', 'autre'],
     split_types: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
 };
 
@@ -159,7 +159,7 @@ function BatchLabeler(type) {
 function Label(type) {
     EventEmitter.call(this, type);
     this.type = type;
-    this.dom = $('<select class="label"></select>');
+    this.dom = $('<select></select>').addClass('label');
     for(var i in Config.labels) {
         this.dom.append($('<option></option>').attr('value', Config.labels[i]).text(Config.labels[i]));
     }
@@ -182,7 +182,7 @@ function Label(type) {
 function ShotLabels(type) {
     EventEmitter.call(this, type);
     this.type = type;
-    this.dom = $('<ul class="shotlabels"></ul>');
+    this.dom = $('<ol></ol>').addClass('shotLabels');
     this.labels = [];
     this.set = function(splitSize, labels) {
         while(this.labels.length < splitSize || (labels != undefined && this.labels.length < labels.length)) {
@@ -233,7 +233,7 @@ function SplitSelector(type) {
     EventEmitter.call(this, type);
     this.type = type;
     this.splits = {};
-    this.dom = $('<div class="splitselector"></div>');
+    this.dom = $('<div></div>').addClass('splitSelector');
     for(var i in Config.split_types) {
         var split = $('<img>').attr('src', 'splits/' + Config.split_types[i] + '.png')
             .attr('name', Config.split_types[i])
@@ -270,7 +270,7 @@ function MostSimilar(type) {
     EventEmitter.call(this, type);
     this.type = type;
     this.byLabel = {};
-    this.dom = $('<div class="mostsimilar"></div>');
+    this.dom = $('<div></div>').addClass('mostsimilar');
     this.showLabel = function(label) {
         $(this.dom).find('img').removeClass('selected');
         $(this.dom).find('img').each(function(index, element) {
@@ -311,7 +311,7 @@ function MostSimilar(type) {
                     .attr('target_shot', target_shot)
                     .attr('label', scored[i].label)
                     .attr('shot', shot).click(function() {
-                        annotator.copy($(this).attr('target_shot'), $(this.attr('shot')));
+                        annotator.copy($(this).attr('target_shot'), $(this).attr('shot'));
                         annotator.load($(this).attr('shot'));
                         $(this).parent().find('img').removeClass('selected');
                         $(this).addClass('selected');
@@ -337,15 +337,18 @@ function Annotator(type) {
         .append(this.mostSimilar.dom);
 
     this.save = function (shot) {
-        var annotation = {
-            name: shot,
-            split: this.splitSelector.get(),
-            labels: this.shotLabels.get(),
-            label: makeLabel(this.splitSelector.get(), this.shotLabels.get()),
-            annotator: $('#annotator').val(),
-            date: new Date(),
-        };
-        localStorage['percol:' + shot] = JSON.stringify(annotation);
+        if(shot in shotIndex) {
+            var annotation = {
+                name: shot,
+                split: this.splitSelector.get(),
+                labels: this.shotLabels.get(),
+                label: makeLabel(this.splitSelector.get(), this.shotLabels.get()),
+                annotator: $('#annotator').val(),
+                date: new Date(),
+            };
+            localStorage['percol:' + shot] = JSON.stringify(annotation);
+            $('img.shot[name="' + shot + '"]').addClass('annotated');
+        }
     };
     this.copy = function(source, target) {
         if('percol:' + source in localStorage) {
@@ -354,6 +357,7 @@ function Annotator(type) {
             annotation.annotator = $('#annotator').val();
             annotation.date = new Date();
             localStorage['percol:' + target] = JSON.stringify(annotation);
+            $('img.shot[name="' + target + '"]').addClass('annotated');
         } else {
             console.log('no annotation available for', source);
         }
@@ -432,16 +436,21 @@ $(function() {
             $('#shots').empty();
             $('#by-label-shots').empty();
             for(var i in images) {
-                shotIndex[basename(images[i])] = {id: i, image: datadir + '/' + images[i]};
+                var name = basename(images[i]);
+                shotIndex[name] = {id: i, image: datadir + '/' + images[i]};
                 // by shot
                 var image = $('<img class="shot">');
+                console.log('percol:' + name);
+                if('percol:' + name in localStorage) {
+                    $(image).addClass('annotated');
+                }
                 image.click(function(event) {
                     $('.shot').removeClass('selected');
                     $(this).addClass('selected');
-                    annotator.set(basename(this.name));
+                    annotator.set($(this).attr('name'));
                 });
                 $(image).attr('src', datadir + '/' + images[i])
-                    .attr('name', images[i]);
+                    .attr('name', name);
                 $('#shots').append(image);
 
                 $('#by-label').empty().append(annotator.batchLabeler.dom);
