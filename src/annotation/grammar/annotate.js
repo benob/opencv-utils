@@ -52,8 +52,10 @@ function BatchLabeler(type) {
     this.labelList = $('<select></select>').addClass('label-list');
     this.labeledShots = $('<div>').addClass('labeled-shots');
     this.unlabeledShots = $('<div>').addClass('unlabeled-shots');
-    $(this.dom).append(this.labelList)
+    $(this.dom)
         .append(this.labeledShots)
+        .append(this.labelList)
+        .append($('<button></button>').addClass('apply').text('Apply'))
         .append('<hr>')
         .append(this.unlabeledShots);
     this.update = function() {
@@ -74,11 +76,12 @@ function BatchLabeler(type) {
             $(this.labelList).append($('<option></option>').attr('value', i).text(i));
         }
         $(this.labelList).change(function() {
-            console.log('changed', $(this).val());
             this.object.set($(this).val());
         });
+        $(this.labelList).find('img:nth-child(2)').prop('selected',true);
+        this.set($(this.labelList).val());
     }
-    this.set = function(label) {
+    this.getAnnotated = function(label) {
         var annotated = {};
         // list annotated shots with that label
         for(var id in localStorage) {
@@ -91,30 +94,56 @@ function BatchLabeler(type) {
                             }
             }
         }
+        return annotated;
+    }
+
+    this.set = function(label) {
+        var annotated = this.getAnnotated(label);
         $(this.labeledShots).empty();
         $(this.unlabeledShots).empty();
         for(var i in annotated) {
             var image = datadir + '/' + i.split('.')[0] + '/' + i + '.192';
             $(this.labeledShots).append($('<img>')
                     .attr('src', image)
+                    .attr('name', i)
+                    .addClass('thumbnail')
+                    .click(function() {
+                        $(this).parent().find('.selected').removeClass('selected');
+                        $(this).addClass('selected');
+                        var shot = $(this).attr('name');
+                        $(this).parent()[0].object.showUnannotated(shot, label);
+                    }));
+            $(this.labeledShots).find('img:first-child').click();
+        }
+    };
+    this.showUnannotated = function(shot, label) {
+        var annotated = this.getAnnotated(label);
+        var unannotated = [];
+        for(var name in shotIndex) {
+            if(!(name in annotated)) {
+                unannotated.push({name: name, score:sim[shotIndex[shot].id][shotIndex[name].id]});
+            }
+        }
+        unannotated.sort(function(a, b) {
+            return a.score - b.score;
+        });
+        for(var i in unannotated) {
+            var name = unannotated[i].name;
+            $(this.unlabeledShots).append($('<img>')
+                    .attr('src', shotIndex[name].image)
+                    .attr('name', name)
+                    .attr('title', unannotated[i].score)
                     .addClass('thumbnail')
                     .click(function() {
                         $(this).toggleClass('selected');
                     }));
         }
-        for(var name in shotIndex) {
-            if(!(name in annotated)) {
-                $(this.unlabeledShots).append($('<img>')
-                        .attr('src', shotIndex[name].image)
-                        .addClass('thumbnail')
-                        .click(function() {
-                            $(this).toggleClass('selected');
-                        }));
-            }
-        }
-    };
-    this.update();
+    }
+    console.log($(this.dom).find('button.apply').on('click', function() { console.log('tuto'); }));
     this.labelList[0].object = this;
+    this.unlabeledShots[0].object = this;
+    this.labeledShots[0].object = this;
+    this.update();
 }
 
 function Label(type) {
@@ -394,8 +423,8 @@ $(function() {
                 $('#shots').append(image);
 
                 $('#by-label').empty().append(annotator.batchLabeler.dom);
-                annotator.batchLabeler.update();
             }
+            annotator.batchLabeler.update();
         };
         $('#shots').empty();
         $(document.head).append($('<script lang="javascript">').attr('src', 'data/' + show + '.js'));
