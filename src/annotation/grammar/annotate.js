@@ -52,10 +52,11 @@ function BatchLabeler(type) {
     this.labelList = $('<select></select>').addClass('label-list');
     this.labeledShots = $('<div>').addClass('labeled-shots');
     this.unlabeledShots = $('<div>').addClass('unlabeled-shots');
+    this.applyButton = $('<button>Apply</button>').addClass('apply');
     $(this.dom)
         .append(this.labeledShots)
         .append(this.labelList)
-        .append($('<button></button>').addClass('apply').text('Apply'))
+        .append(this.applyButton)
         .append('<hr>')
         .append(this.unlabeledShots);
     this.update = function() {
@@ -80,6 +81,14 @@ function BatchLabeler(type) {
         });
         $(this.labelList).find('img:nth-child(2)').prop('selected',true);
         this.set($(this.labelList).val());
+
+        $(this.applyButton).click(function() {
+            var shot = ($(this).parent()[0].object.labeledShots).find('.selected').attr('name');
+            $($(this).parent()[0].object.unlabeledShots).find('img.selected').each(function() {
+                annotator.copy(shot, $(this).attr('name'));
+            });
+            $(this).parent()[0].object.set($($(this).parent()[0].object.labelList).val());
+        });
     }
     this.getAnnotated = function(label) {
         var annotated = {};
@@ -111,10 +120,10 @@ function BatchLabeler(type) {
                         $(this).parent().find('.selected').removeClass('selected');
                         $(this).addClass('selected');
                         var shot = $(this).attr('name');
-                        $(this).parent()[0].object.showUnannotated(shot, label);
+                        $(this).parent()[0].object.showUnannotated(shot, $($(this).parent()[0].object.labelList).val());
                     }));
-            $(this.labeledShots).find('img:first-child').click();
         }
+        $(this.labeledShots).find(':first-child').click();
     };
     this.showUnannotated = function(shot, label) {
         var annotated = this.getAnnotated(label);
@@ -127,10 +136,11 @@ function BatchLabeler(type) {
         unannotated.sort(function(a, b) {
             return a.score - b.score;
         });
+        $(this.unlabeledShots).empty();
         for(var i in unannotated) {
             var name = unannotated[i].name;
             $(this.unlabeledShots).append($('<img>')
-                    .attr('src', shotIndex[name].image)
+                    .attr('src', shotIndex[name].image + '.192')
                     .attr('name', name)
                     .attr('title', unannotated[i].score)
                     .addClass('thumbnail')
@@ -139,10 +149,10 @@ function BatchLabeler(type) {
                     }));
         }
     }
-    console.log($(this.dom).find('button.apply').on('click', function() { console.log('tuto'); }));
     this.labelList[0].object = this;
     this.unlabeledShots[0].object = this;
     this.labeledShots[0].object = this;
+    this.dom[0].object = this;
     this.update();
 }
 
@@ -301,8 +311,8 @@ function MostSimilar(type) {
                     .attr('target_shot', target_shot)
                     .attr('label', scored[i].label)
                     .attr('shot', shot).click(function() {
-                        annotator.load($(this).attr('target_shot'));
-                        annotator.save($(this).attr('shot'));
+                        annotator.copy($(this).attr('target_shot'), $(this.attr('shot')));
+                        annotator.load($(this).attr('shot'));
                         $(this).parent().find('img').removeClass('selected');
                         $(this).addClass('selected');
                     }));
@@ -337,6 +347,18 @@ function Annotator(type) {
         };
         localStorage['percol:' + shot] = JSON.stringify(annotation);
     };
+    this.copy = function(source, target) {
+        if('percol:' + source in localStorage) {
+            var annotation = JSON.parse(localStorage['percol:' + source]);
+            annotation.name = target;
+            annotation.annotator = $('#annotator').val();
+            annotation.date = new Date();
+            localStorage['percol:' + target] = JSON.stringify(annotation);
+        } else {
+            console.log('no annotation available for', source);
+        }
+    }
+
     this.load = function(shot) {
         if('percol:' + shot in localStorage) {
             var annotation = JSON.parse(localStorage['percol:' + shot]);
@@ -433,6 +455,14 @@ $(function() {
 
     $('#export').click(function() {
         window.open('data:application/json;charset=utf-8,' + exportAnnotation());
+    });
+
+    // save annotator name
+    if('annotatorName' in localStorage) {
+        $('#annotator').val(localStorage['annotatorName']);
+    }
+    $('#annotator').change(function() {
+        localStorage['annotatorName'] = $(this).val();
     });
 
     $('#by-shot').hide();
