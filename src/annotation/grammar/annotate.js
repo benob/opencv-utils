@@ -5,10 +5,61 @@ if (typeof String.prototype.startsWith != 'function') {
 }
 
 var Config = {
-    labels: ['presentateur', 'journaliste', 'invite', 'journaliste(face)+invite(dos)', 'reportage', 'graphiques', 'autre'],
-    split_types: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
+    // forbidden characters: '=', ':', ',' and '|'
+    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Foule', 'Autre'],
+    poses: ['Face', 'Profil droit', 'Profil gauche', 'Dos', 'Autre'],
+    locations: ['Centre', 'Gauche', 'Droite'],
+    subshots: ['Plateau', 'Reportage', 'Graphique', 'Autre'],
+    splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '2-overlay', '1-other'],
 };
 
+function Annotation(label) {
+    if(label == undefined) {
+        this.split = Config.splits[0];
+        var cardinality = parseInt(this.split);
+        this.subshots = [];
+        for(var i = 0; i < cardinality; i++) {
+            this.subshots.push({type: Config.subshots[0], persons: [],});
+        }
+    } else if(typeof(label) == typeof('')) {
+        var parts = label.split('=');
+        this.split = parts[0];
+        parts = parts[1].split('|');
+        this.subshots = [];
+        for(var i in parts) {
+            var tokens = parts[i].split(':');
+            var subshot = { type: tokens[0], persons: [] };
+            tokens = tokens[1].split(',');
+            for(var j in tokens) {
+                var info = tokens[j].split('+');
+                subshot.persons.push({
+                    role: info[0],
+                    pose: info[1],
+                    location: info[2],
+                });
+            }
+            this.subshots.push(subshot);
+        }
+    } else {
+        this.split = label.split;
+        this.subshots = label.subshots;
+    }
+    this.toString = function() {
+        var subshots = [];
+        for(var i in this.subshots) {
+            var persons = [];
+            for(var j in this.subshots[i].persons) {
+                var person = this.subshots[i].persons[j];
+                persons.push(person.role + '+' + person.pose + '+' + person.location);
+            }
+            subshots.push(this.subshots[i].type + ':' + persons.join(','));
+        }
+        var result = (this.split + '=' + subshots.join('|'));
+        return result;
+    }
+}
+
+// DEPRECATED
 function makeLabel(split, labels) {
     var cardinality = parseInt(split);
     return split + '=' + labels.slice(0, cardinality).join('+');
@@ -64,8 +115,7 @@ function BatchLabeler(type) {
         for(var id in localStorage) {
             if(id.startsWith('percol:')) {
                 var annotation = JSON.parse(localStorage[id]);
-                var label = annotation.label;
-                if(label == null) label = makeLabel(annotation.split, annotation.labels);
+                var label = new Annotation(annotation).toString();
                 if(!(label in seenLabels)) {
                     seenLabels[label] = [];
                 }
@@ -96,11 +146,9 @@ function BatchLabeler(type) {
         for(var id in localStorage) {
             if(id.startsWith('percol:')) {
                 var annotation = JSON.parse(localStorage[id]);
-                if(annotation.label == label 
-                        || (annotation.label == undefined 
-                            && makeLabel(annotation.split, annotation.labels) == label)) {
-                                annotated[annotation.name] = 1;
-                            }
+                if(new Annotation(annotation).toString() == label ) {
+                    annotated[annotation.name] = 1;
+                }
             }
         }
         return annotated;
@@ -111,7 +159,7 @@ function BatchLabeler(type) {
         $(this.labeledShots).empty();
         $(this.unlabeledShots).empty();
         for(var i in annotated) {
-            var image = datadir + '/' + i.split('.')[0] + '/' + i + '.192';
+            var image = datadir + '/' + i.split('.')[0] + '/' + i;// + '.192';
             $(this.labeledShots).append($('<img>')
                     .attr('src', image)
                     .attr('name', i)
@@ -140,7 +188,7 @@ function BatchLabeler(type) {
         for(var i in unannotated) {
             var name = unannotated[i].name;
             $(this.unlabeledShots).append($('<img>')
-                    .attr('src', shotIndex[name].image + '.192')
+                    .attr('src', shotIndex[name].image/* + '.192'*/)
                     .attr('name', name)
                     .attr('title', unannotated[i].score)
                     .addClass('thumbnail')
@@ -156,26 +204,101 @@ function BatchLabeler(type) {
     this.update();
 }
 
-function Label(type) {
+function PersonAnnotation(type) {
     EventEmitter.call(this, type);
     this.type = type;
-    this.dom = $('<select></select>').addClass('label');
-    for(var i in Config.labels) {
-        this.dom.append($('<option></option>').attr('value', Config.labels[i]).text(Config.labels[i]));
+    this.dom = $('<div></div>').addClass('person');
+    this.role = $('<select></select>').addClass('role');
+    for(var i in Config.roles) {
+        this.role.append($('<option></option>').attr('value', Config.roles[i]).text(Config.roles[i]));
     }
-    $(this.dom).change(function() {
-        this.object.fire('change');
+    $(this.dom).append(this.role);
+    this.pose = $('<select></select>').addClass('pose');
+    for(var i in Config.poses) {
+        this.pose.append($('<option></option>').attr('value', Config.poses[i]).text(Config.poses[i]));
+    }
+    $(this.dom).append(this.pose);
+    this.location = $('<select></select>').addClass('location');
+    for(var i in Config.locations) {
+        this.location.append($('<option></option>').attr('value', Config.locations[i]).text(Config.locations[i]));
+    }
+    $(this.dom).append(this.location);
+    $(this.dom).find('select').change(function() {
+        $(this).parent()[0].object.fire('change');
     });
     this.get = function() {
-        return $(this.dom).val();
+        return {role: $(this.role).val(), pose: $(this.pose).val(), location: $(this.location).val()};
     };
-    this.set = function(label) {
-        $(this.dom).val(label);
+    this.set = function(person) {
+        $(this.role).val(person.role);
+        $(this.pose).val(person.pose);
+        $(this.location).val(person.location);
     };
     this.setDefault = function() {
-        this.set(Config.labels[0]);
+        this.set({role: Config.roles[0], pose: Config.poses[0], location: Config.locations[0]});
     }
     this.setDefault();
+    this.dom[0].object = this;
+}
+
+function SubshotAnnotation(type) {
+    EventEmitter.call(this, type);
+    this.type = type;
+    this.dom = $('<div></div>').addClass('subshot');
+    this.type = $('<select></select>').addClass('type');
+    for(var i in Config.subshots) {
+        this.type.append($('<option></option>').attr('value', Config.subshots[i]).text(Config.subshots[i]));
+    };
+    $(this.type).val(Config.subshots[0]);
+    $(this.type).change(function() {
+        $(this).parent()[0].object.fire('change');
+    });
+    $(this.dom).append('Type: ').append(this.type);
+    this.numPersons = $('<select></select>').addClass('numPersons');
+    for(var i = 0; i < 10; i++) {
+        this.numPersons.append($('<option></option>').attr('value', i).text(i));
+    }
+    $(this.dom).append('Persons: ').append(this.numPersons);
+    $(this.numPersons).val(0);
+    $(this.numPersons).change(function() {
+        var num = parseInt($(this).val());  
+        $(this).parent().find('.personItem').hide();
+        for(var i = 0; i < num; i++) {
+            $($(this).parent()[0].object.persons[i].dom).parent().show();
+        }
+        $(this).parent()[0].object.fire('change');
+    });
+    var personList = $('<ol></ol>');
+    this.persons = [];
+    for(var i = 0; i < 10; i++) {
+        var person = new PersonAnnotation();
+        personList.append($('<li></li>').addClass('personItem').append(person.dom).hide());
+        this.persons.push(person);
+        person.on('change', this, function(listener, target) {
+            listener.fire('change');
+        });
+    }
+    this.setDefault = function() {
+        this.set({type: Config.subshots[0], persons: []});
+    };
+    this.set = function(subshot) {
+        $(this.type).val(subshot.type);
+        $(this.numPersons).val(subshot.persons.length);
+        $(this.dom).find('.personItem').hide();
+        for(var i in subshot.persons) {
+            this.persons[i].set(subshot.persons[i]);
+            $(this.persons[i].dom).parent().show();
+        }
+    };
+    this.get = function() {
+        var subshot = {type: $(this.type).val(), persons:[] };
+        var num = parseInt($(this.numPersons).val());
+        for(var i = 0; i < num; i++) {
+            subshot.persons.push(this.persons[i].get());
+        }
+        return subshot;
+    };
+    $(this.dom).append(personList);
     this.dom[0].object = this;
 }
 
@@ -183,48 +306,38 @@ function ShotLabels(type) {
     EventEmitter.call(this, type);
     this.type = type;
     this.dom = $('<ol></ol>').addClass('shotLabels');
-    this.labels = [];
-    this.set = function(splitSize, labels) {
-        while(this.labels.length < splitSize || (labels != undefined && this.labels.length < labels.length)) {
-            var label = new Label();
-            label.on('change', this, function(listener, target) {
-                listener.fire('change');
-            });
-            this.labels.push(label);
-            $(this.dom).append($('<li></li>').append(label.dom));
-        }
-        for(var i = 0; i < this.labels.length; i++) {
-            if(i < splitSize) {
-                $(this.labels[i].dom).parent().show();
-            } else {
-                $(this.labels[i].dom).parent().hide();
-            }
-        }
-        if(labels != undefined) {
-            for(i in this.labels) {
-                this.labels[i].setDefault();
-            }
-            for(var i in labels) {
-                this.labels[i].set(labels[i]);
-            }
+    this.subshots = [];
+    this.cardinality = 0;
+    for(var i = 0; i < 10; i++) {
+        var subshot = new SubshotAnnotation();
+        subshot.on('change', this, function(listener, target) {
+            listener.fire('change');
+        });
+        this.subshots.push(subshot);
+        $(this.dom).append($('<li></li>').addClass('subshotItem').append(subshot.dom).hide());
+    }
+    this.set = function(subshots) {
+        this.cardinality = subshots.length;
+        $(this.dom).find('.subshotItem').hide();
+        for(var i in subshots) {
+            this.subshots[i].set(subshots[i]);
+            $(this.subshots[i].dom).parent().show();
         }
     };
-    this.setDefault = function() {
-        for(var i in this.labels) {
-            this.labels[i].setDefault();
-            $(this.labels[i].dom).parent().hide();
+    this.setDefault = function(cardinality) {
+        this.cardinality = cardinality || 0;
+        $(this.dom).find('.subshotItem').hide();
+        for(var i = 0; i < this.cardinality; i++) {
+            this.subshots[i].setDefault();
+            $(this.subshots[i].dom).parent().show();
         }
     }
-    this.get = function(cardinality) {
-        var list = [];
-        if(cardinality != undefined) {
-            for(var i = 0; i < cardinality; i++) list.push(this.labels[i].get());
-        } else {
-            for(var i in this.labels) {
-                list.push(this.labels[i].get());
-            }
+    this.get = function() {
+        var subshots = [];
+        for(var i = 0; i < this.cardinality; i++) {
+            subshots.push(this.subshots[i].get());
         }
-        return list;
+        return subshots;
     };
     this.dom[0].object = this;
 }
@@ -234,17 +347,17 @@ function SplitSelector(type) {
     this.type = type;
     this.splits = {};
     this.dom = $('<div></div>').addClass('splitSelector');
-    for(var i in Config.split_types) {
-        var split = $('<img>').attr('src', 'splits/' + Config.split_types[i] + '.png')
-            .attr('name', Config.split_types[i])
-            .attr('cardinality', parseInt(Config.split_types[i]));
+    for(var i in Config.splits) {
+        var split = $('<img>').attr('src', 'splits/' + Config.splits[i] + '.png')
+            .attr('name', Config.splits[i])
+            .attr('cardinality', parseInt(Config.splits[i]));
         split.click(function() {
             $(this.parentNode).find('img').removeClass('selected');
             $(this).addClass('selected');
-            this.parentNode.object.fire('change');
+            $(this).parent()[0].object.fire('change');
         });
         $(this.dom).append(split);
-        this.splits[Config.split_types[i]] = split;
+        this.splits[Config.splits[i]] = split;
     }
     this.set = function(name) {
         if(name in this.splits) {
@@ -253,7 +366,7 @@ function SplitSelector(type) {
         }
     };
     this.setDefault = function() {
-        this.set(Config.split_types[0]);
+        this.set(Config.splits[0]);
     }
     this.get = function() {
         var selected = $(this.dom).find('.selected');
@@ -269,6 +382,7 @@ function SplitSelector(type) {
 function MostSimilar(type) {
     EventEmitter.call(this, type);
     this.type = type;
+    this.numSimilar = 12;
     this.byLabel = {};
     this.dom = $('<div></div>').addClass('mostsimilar');
     this.showLabel = function(label) {
@@ -284,7 +398,7 @@ function MostSimilar(type) {
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
                 var annotation = JSON.parse(localStorage[id]);
-                var label = makeLabel(annotation.split, annotation.labels);
+                var label = new Annotation(annotation).toString();
                 if(annotation.name != shot) {
                     var score = sim[shotIndex[shot].id][shotIndex[annotation.name].id];
                     if(!(label in min) || min[label] > score) {
@@ -302,7 +416,7 @@ function MostSimilar(type) {
             return a.score - b.score;
         });
         $(this.dom).empty();
-        for(var i = 0; i < scored.length && i < 4; i++) {
+        for(var i = 0; i < scored.length && i < this.numSimilar; i++) {
             var target_shot = scored[i].shot;
             $(this.dom).append($('<img>')
                     .addClass('thumbnail')
@@ -341,8 +455,8 @@ function Annotator(type) {
             var annotation = {
                 name: shot,
                 split: this.splitSelector.get(),
-                labels: this.shotLabels.get(),
-                label: makeLabel(this.splitSelector.get(), this.shotLabels.get()),
+                subshots: this.shotLabels.get(),
+                label: this.get(),
                 annotator: $('#annotator').val(),
                 date: new Date(),
             };
@@ -367,7 +481,7 @@ function Annotator(type) {
         if('percol:' + shot in localStorage) {
             var annotation = JSON.parse(localStorage['percol:' + shot]);
             this.splitSelector.set(annotation.split);
-            this.shotLabels.set(this.splitSelector.cardinality(), annotation.labels);
+            this.shotLabels.set(annotation.subshots);
         } else {
             this.splitSelector.setDefault();
             this.shotLabels.setDefault();
@@ -380,7 +494,10 @@ function Annotator(type) {
         this.load(shot);
     };
     this.get = function() {
-        return makeLabel(this.splitSelector.get(), this.shotLabels.get());
+        var annotation = new Annotation();
+        annotation.split = this.splitSelector.get();
+        annotation.subshots = this.shotLabels.get();
+        return annotation;
     };
     this.splitSelector.on('change', this, function(listener, target) {
         listener.save(listener.shotName);
@@ -391,10 +508,12 @@ function Annotator(type) {
         listener.fire('change');
     });
     this.on('change', this, function(listener, target) {
-        listener.shotLabels.set(listener.splitSelector.cardinality());
+        if(listener.splitSelector.cardinality() != listener.shotLabels.cardinality) {
+            listener.shotLabels.setDefault(listener.splitSelector.cardinality());
+        }
         $(listener.dom).find('.shotname').text(listener.shotName);
-        $(listener.dom).find('.textlabel').text(listener.get());
-        listener.mostSimilar.showLabel(listener.get());
+        $(listener.dom).find('.textlabel').text(listener.get().toString());
+        listener.mostSimilar.showLabel(listener.get().toString());
     });
     this.dom[0].object = this;
 }
@@ -423,6 +542,7 @@ $(function() {
             annotator.batchLabeler.update();
         }
     });
+    $("input:radio[value='by-shot']").prop('checked', true).change();
 
     // populate videos
     $('#show').empty();
@@ -440,7 +560,6 @@ $(function() {
                 shotIndex[name] = {id: i, image: datadir + '/' + images[i]};
                 // by shot
                 var image = $('<img class="shot">');
-                console.log('percol:' + name);
                 if('percol:' + name in localStorage) {
                     $(image).addClass('annotated');
                 }
@@ -474,6 +593,4 @@ $(function() {
         localStorage['annotatorName'] = $(this).val();
     });
 
-    $('#by-shot').hide();
-    $('#by-label').show();
 });

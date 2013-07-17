@@ -19,9 +19,11 @@
 
 .annotator {
     position: fixed;
-    left: 600px;
-    top: 100px;
+    left: 550px;
+    top: 60px;
+    bottom: 20px;
     right: 10px;
+    overflow-y: scroll;
 }
 
 .labeldiv {
