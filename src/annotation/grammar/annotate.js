@@ -159,7 +159,7 @@ function BatchLabeler(type) {
         $(this.labeledShots).empty();
         $(this.unlabeledShots).empty();
         for(var i in annotated) {
-            var image = datadir + '/' + i.split('.')[0] + '/' + i;// + '.192';
+            var image = datadir + '/' + i.split('.')[0] + '/' + i + '.192';
             $(this.labeledShots).append($('<img>')
                     .attr('src', image)
                     .attr('name', i)
@@ -188,7 +188,7 @@ function BatchLabeler(type) {
         for(var i in unannotated) {
             var name = unannotated[i].name;
             $(this.unlabeledShots).append($('<img>')
-                    .attr('src', shotIndex[name].image/* + '.192'*/)
+                    .attr('src', shotIndex[name].image + '.192')
                     .attr('name', name)
                     .attr('title', unannotated[i].score)
                     .addClass('thumbnail')
