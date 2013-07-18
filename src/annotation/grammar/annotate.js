@@ -6,6 +6,10 @@ if (typeof String.prototype.startsWith != 'function') {
     };
 }
 
+function makeVisible(target, container) {
+    $(document.body).scrollTop($(target).offset().top - 100);
+}
+
 var Config = {
     // forbidden characters: '=', ':', ',' and '|'
     roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Personnes d\'intêret', 'Autre'],
@@ -173,7 +177,9 @@ function BatchLabeler(type) {
                         $(this).parent()[0].object.showUnannotated(shot, $($(this).parent()[0].object.labelList).val());
                     }));
         }
+        $(this.labelList).val(label);
         $(this.labeledShots).find(':first-child').click();
+        $(document.body).scrollTop(0);
     };
     this.showUnannotated = function(shot, label) {
         var annotated = this.getAnnotated(label);
@@ -194,12 +200,22 @@ function BatchLabeler(type) {
                     .attr('name', name)
                     .attr('title', 'distance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name)
                     .addClass('thumbnail')
-                    .click(function() {
-                        $(this).toggleClass('selected');
+                    .click(function(e) {
+                        if(e.shiftKey) {
+                            if($(this).attr('label') != undefined) {
+                                $(this).parent()[0].object.set($(this).attr('label'));
+                            }
+                        } else if(e.ctrlKey) {
+                            $("input:radio[value='by-shot']").prop('checked', true).change();
+                            makeVisible($(".shot[name='" + $(this).attr('name') + "']").click(), document.body);
+                        } else {
+                            $(this).toggleClass('selected');
+                        }
                     });
             if('percol:' + unannotated[i].name in localStorage) {
                 var shotLabel = new Annotation(JSON.parse(localStorage['percol:' + unannotated[i].name])).toString();
                 $(img).addClass('hasLabel')
+                    .attr('label', shotLabel)
                     .attr('title', shotLabel + '\ndistance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name);
             }
             $(this.unlabeledShots).append(img);
@@ -547,6 +563,12 @@ $(function() {
             $('#by-shot').hide();
             $('#by-label').show();
             annotator.batchLabeler.update();
+            var name = $('.shot.selected').attr('name');
+            if('percol:' + name in localStorage) {
+                var annotation = JSON.parse(localStorage['percol:' + name]);
+                annotator.batchLabeler.set(new Annotation(annotation).toString());
+                console.log($(annotator.batchLabeler.labeledShots).find("[name='" + name + "']").click());
+            }
         }
     });
     $("input:radio[value='by-shot']").prop('checked', true).change();
