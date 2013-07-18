@@ -6,16 +6,18 @@ if (typeof String.prototype.startsWith != 'function') {
     };
 }
 
-function makeVisible(target, container) {
-    $(document.body).scrollTop($(target).offset().top - 100);
+function makeVisible(target) {
+    if($(target).length > 0) {
+        $('body,html').scrollTop($(target).offset().top - 100);
+    }
 }
 
 var Config = {
-    // forbidden characters: '=', ':', ',' and '|'
-    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Personnes d\'intêret', 'Autre'],
+    // forbidden characters: '=', ':', ',', '+', and '|'
+    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Photo', 'Personnes d\'intêret', 'Autre'],
     poses: ['Face', 'Profil ->', '<- Profil', 'Dos', 'Autre'],
-    locations: ['Centre', 'Gauche', 'Droite'],
-    subshots: ['Plateau', 'Plateau + reportage incrusté', 'Reportage', 'Reportage + foule', 'Graphique', 'Jingle', 'Autre'],
+    locations: ['Centre', 'Gauche', 'Droite', 'Autre'],
+    subshots: ['Plateau', 'Plateau (reportage incrusté)', 'Plateau (webcam)', 'Reportage', 'Reportage (foule)', 'Infographie', 'Jingle', 'Autre'],
     splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
 };
 
@@ -170,16 +172,21 @@ function BatchLabeler(type) {
                     .attr('src', image)
                     .attr('name', i)
                     .addClass('thumbnail')
-                    .click(function() {
-                        $(this).parent().find('.selected').removeClass('selected');
-                        $(this).addClass('selected');
-                        var shot = $(this).attr('name');
-                        $(this).parent()[0].object.showUnannotated(shot, $($(this).parent()[0].object.labelList).val());
+                    .click(function(e) {
+                        if(e.ctrlKey) {
+                            $("input:radio[value='by-shot']").prop('checked', true).change();
+                            makeVisible($(".shot[name='" + $(this).attr('name') + "']").click());
+                        } else {
+                            $(this).parent().find('.selected').removeClass('selected');
+                            $(this).addClass('selected');
+                            var shot = $(this).attr('name');
+                            $(this).parent()[0].object.showUnannotated(shot, $($(this).parent()[0].object.labelList).val());
+                        }
                     }));
         }
         $(this.labelList).val(label);
         $(this.labeledShots).find(':first-child').click();
-        $(document.body).scrollTop(0);
+        $('body,html').scrollTop(0);
     };
     this.showUnannotated = function(shot, label) {
         var annotated = this.getAnnotated(label);
@@ -196,22 +203,22 @@ function BatchLabeler(type) {
         for(var i in unannotated) {
             var name = unannotated[i].name;
             var img = $('<img>')
-                    .attr('src', shotIndex[name].image + '.192')
-                    .attr('name', name)
-                    .attr('title', 'distance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name)
-                    .addClass('thumbnail')
-                    .click(function(e) {
-                        if(e.shiftKey) {
-                            if($(this).attr('label') != undefined) {
-                                $(this).parent()[0].object.set($(this).attr('label'));
-                            }
-                        } else if(e.ctrlKey) {
-                            $("input:radio[value='by-shot']").prop('checked', true).change();
-                            makeVisible($(".shot[name='" + $(this).attr('name') + "']").click(), document.body);
-                        } else {
-                            $(this).toggleClass('selected');
+                .attr('src', shotIndex[name].image + '.192')
+                .attr('name', name)
+                .attr('title', 'distance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name)
+                .addClass('thumbnail')
+                .click(function(e) {
+                    if(e.shiftKey) {
+                        if($(this).attr('label') != undefined) {
+                            $(this).parent()[0].object.set($(this).attr('label'));
                         }
-                    });
+                    } else if(e.ctrlKey) {
+                        $("input:radio[value='by-shot']").prop('checked', true).change();
+                        makeVisible($(".shot[name='" + $(this).attr('name') + "']").click());
+                    } else {
+                        $(this).toggleClass('selected');
+                    }
+                });
             if('percol:' + unannotated[i].name in localStorage) {
                 var shotLabel = new Annotation(JSON.parse(localStorage['percol:' + unannotated[i].name])).toString();
                 $(img).addClass('hasLabel')
@@ -406,7 +413,7 @@ function SplitSelector(type) {
 function MostSimilar(type) {
     EventEmitter.call(this, type);
     this.type = type;
-    this.numSimilar = 12;
+    this.numSimilar = 99;
     this.byLabel = {};
     this.dom = $('<div></div>').addClass('mostsimilar');
     this.showLabel = function(label) {
@@ -559,6 +566,8 @@ $(function() {
         if($(this).val() == 'by-shot') {
             $('#by-shot').show();
             $('#by-label').hide();
+            $('#by-shot').show();
+            makeVisible($(".shot.selected"));
         } else if($(this).val() == 'by-label') {
             $('#by-shot').hide();
             $('#by-label').show();
@@ -604,6 +613,7 @@ $(function() {
 
                 $('#by-label').empty().append(annotator.batchLabeler.dom);
             }
+            makeVisible($('#shots img:first-child').click());
             annotator.batchLabeler.update();
         };
         $('#shots').empty();
