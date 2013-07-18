@@ -8,10 +8,10 @@ if (typeof String.prototype.startsWith != 'function') {
 
 var Config = {
     // forbidden characters: '=', ':', ',' and '|'
-    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Foule', 'Autre'],
+    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Personnes d\'intêret', 'Autre'],
     poses: ['Face', 'Profil ->', '<- Profil', 'Dos', 'Autre'],
     locations: ['Centre', 'Gauche', 'Droite'],
-    subshots: ['Plateau', 'Plateau + reportage incrusté', 'Reportage', 'Graphique', 'Jingle', 'Autre'],
+    subshots: ['Plateau', 'Plateau + reportage incrusté', 'Reportage', 'Reportage + foule', 'Graphique', 'Jingle', 'Autre'],
     splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
 };
 
