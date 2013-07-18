@@ -1,3 +1,5 @@
+var video = null;
+
 if (typeof String.prototype.startsWith != 'function') {
     String.prototype.startsWith = function (str){
         return this.slice(0, str.length) == str;
@@ -7,10 +9,10 @@ if (typeof String.prototype.startsWith != 'function') {
 var Config = {
     // forbidden characters: '=', ':', ',' and '|'
     roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Foule', 'Autre'],
-    poses: ['Face', 'Profil droit', 'Profil gauche', 'Dos', 'Autre'],
+    poses: ['Face', 'Profil ->', '<- Profil', 'Dos', 'Autre'],
     locations: ['Centre', 'Gauche', 'Droite'],
-    subshots: ['Plateau', 'Reportage', 'Graphique', 'Autre'],
-    splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '2-overlay', '1-other'],
+    subshots: ['Plateau', 'Plateau + reportage incrusté', 'Reportage', 'Graphique', 'Jingle', 'Autre'],
+    splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
 };
 
 function Annotation(label) {
@@ -113,7 +115,7 @@ function BatchLabeler(type) {
     this.update = function() {
         var seenLabels = {};
         for(var id in localStorage) {
-            if(id.startsWith('percol:')) {
+            if(id.startsWith('percol:' + video)) {
                 var annotation = JSON.parse(localStorage[id]);
                 var label = new Annotation(annotation).toString();
                 if(!(label in seenLabels)) {
@@ -144,7 +146,7 @@ function BatchLabeler(type) {
         var annotated = {};
         // list annotated shots with that label
         for(var id in localStorage) {
-            if(id.startsWith('percol:')) {
+            if(id.startsWith('percol:' + video)) {
                 var annotation = JSON.parse(localStorage[id]);
                 if(new Annotation(annotation).toString() == label ) {
                     annotated[annotation.name] = 1;
@@ -187,14 +189,20 @@ function BatchLabeler(type) {
         $(this.unlabeledShots).empty();
         for(var i in unannotated) {
             var name = unannotated[i].name;
-            $(this.unlabeledShots).append($('<img>')
+            var img = $('<img>')
                     .attr('src', shotIndex[name].image + '.192')
                     .attr('name', name)
-                    .attr('title', unannotated[i].score)
+                    .attr('title', 'distance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name)
                     .addClass('thumbnail')
                     .click(function() {
                         $(this).toggleClass('selected');
-                    }));
+                    });
+            if('percol:' + unannotated[i].name in localStorage) {
+                var shotLabel = new Annotation(JSON.parse(localStorage['percol:' + unannotated[i].name])).toString();
+                $(img).addClass('hasLabel')
+                    .attr('title', shotLabel + '\ndistance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name);
+            }
+            $(this.unlabeledShots).append(img);
         }
     }
     this.labelList[0].object = this;
@@ -392,7 +400,6 @@ function MostSimilar(type) {
         });
     };
     this.set = function(shot) {
-        var video = shot.split('.')[0];
         var min = {};
         var argmin = {};
         for(var id in localStorage) {
@@ -551,6 +558,7 @@ $(function() {
     }
     $('#show').change(function() {
         var show = $(this).val();
+        video = show;
         shotIndex = {};
         callback = function() {
             $('#shots').empty();

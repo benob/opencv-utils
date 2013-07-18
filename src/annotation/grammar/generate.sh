@@ -30,4 +30,4 @@ do
     mkdir -p images/$show
 done
 
-find $data -name \*.png | while read image; do target=images/$(basename $(dirname $image))/$(basename $image);echo "echo $image;convert -resize 512x288\\! $image $target"; done | parallel -j 4
+find $data -name \*.png | while read image; do target=images/$(basename $(dirname $image))/$(basename $image);echo "echo $image;convert -resize 512x288\\! $image $target; convert -resize 192x108\\! $image ${target}.192"; done | parallel -j 4

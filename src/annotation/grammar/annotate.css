@@ -64,6 +64,11 @@ img.thumbnail.selected {
     border: 3px solid red;
 }
 
+img.thumbnail.hasLabel {
+    opacity: .7;
+    border: 3px solid green;
+}
+
 img.thumbnail {
     width: 192px;
     height: 108px;
