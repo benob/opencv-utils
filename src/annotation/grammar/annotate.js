@@ -1,3 +1,7 @@
+/* TODO
+   view videos
+   view annotated
+   */
 var video = null;
 
 if (typeof String.prototype.startsWith != 'function') {
@@ -14,10 +18,10 @@ function makeVisible(target) {
 
 var Config = {
     // forbidden characters: '=', ':', ',', '+', and '|'
-    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Photo', 'Personnes d\'intêret', 'Autre'],
+    roles: ['Presentateur', 'Journaliste', 'Invité/inteviewé', 'Personnes d\'intêret', 'Figurants', 'Autre'],
     poses: ['Face', 'Profil ->', '<- Profil', 'Dos', 'Autre'],
     locations: ['Centre', 'Gauche', 'Droite', 'Autre'],
-    subshots: ['Plateau', 'Plateau (reportage incrusté)', 'Plateau (webcam)', 'Reportage', 'Reportage (foule)', 'Infographie', 'Jingle', 'Autre'],
+    subshots: ['Plateau', 'Plateau (reportage incrusté)', 'Plateau (webcam)', 'Plateau (autre emission)', 'Reportage', 'Reportage (foule)', 'Photo', 'Infographie', 'Jingle', 'Autre'],
     splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
 };
 
@@ -65,12 +69,6 @@ function Annotation(label) {
         var result = (this.split + '=' + subshots.join('|'));
         return result;
     }
-}
-
-// DEPRECATED
-function makeLabel(split, labels) {
-    var cardinality = parseInt(split);
-    return split + '=' + labels.slice(0, cardinality).join('+');
 }
 
 function exportAnnotation() {
