@@ -90,7 +90,7 @@ namespace amu {
                     }
                     size = cv::Size(width, height);
                 }
-                double scale = options.Get("--scale", 1.0);
+                double scale = options.Get<double>("--scale", 1.0);
                 if(scale != 1.0) size = cv::Size(size.width * scale, size.height * scale);
 
                 frameSkip = options.Get("--frame-skip", 0);
@@ -207,7 +207,7 @@ namespace amu {
                 } else if(type == VideoType_Video) {
                     bool result = video.set(CV_CAP_PROP_POS_MSEC, time * 1000);
                     this->index = video.get(CV_CAP_PROP_POS_FRAMES);
-                    this->time = video.get(CV_CAP_PROP_POS_MSEC) * 1000;
+                    this->time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
                     return result;
                 }
                 return false;
@@ -228,7 +228,7 @@ namespace amu {
                 } else {
                     video.set(CV_CAP_PROP_POS_FRAMES, frame);
                     this->index = video.get(CV_CAP_PROP_POS_FRAMES);
-                    this->time = video.get(CV_CAP_PROP_POS_MSEC) * 1000;
+                    this->time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
                     return true;
                 }
             }
@@ -250,7 +250,7 @@ namespace amu {
                 return time;
             }
 
-            bool ReadFrame(cv::Mat& resized) {
+            bool ReadFrame(cv::Mat& resized, int interpolation = cv::INTER_LANCZOS4) {
                 cv::Mat image;
                 if(type == VideoType_ImageList) {
                     if(currentImage == images.end()) return false;
@@ -276,7 +276,7 @@ namespace amu {
                 if(size == cv::Size(0, 0)) {
                     image.copyTo(resized);
                 } else {
-                    cv::resize(image, resized, size);
+                    cv::resize(image, resized, size, interpolation);
                 }
                 lastReadSize = image.size();
                 if(frameSkip != 0) {
