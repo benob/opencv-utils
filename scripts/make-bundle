@@ -22,7 +22,7 @@ set -o errexit -o pipefail
 cp $1 "$target/$binary"
 cp `ldd "$1" | grep ld-linux | awk '{print $1}'` "$target/ld-linux"
 mkdir "$target/lib"
-ldd "$1" | awk '{print $3}' | xargs cp -t "$target/lib"
+ldd "$1" | awk 'NF == 4 {print $3}' | xargs cp -t "$target/lib"
 
 # generate script to uncompress and exectute binary
 (
