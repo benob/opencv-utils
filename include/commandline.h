@@ -40,6 +40,28 @@ namespace amu {
             return false;
         }
 
+        template <typename T> T Read(const std::string& name, const T& defaultValue) const {
+            for(std::vector<std::string>::const_iterator i = args.begin(); i != args.end() && i + 1 != args.end(); i++) {
+                if(*i == name) {
+                    std::stringstream reader(*(i + 1));
+                    T output;
+                    reader >> output;
+                    return output;
+                }
+            }
+            return defaultValue;
+        }
+
+        template <typename T> T Read(int index, const T& defaultValue) {
+            if(index >= 0 && index < Size()) {
+                std::stringstream reader(args[index]);
+                T output;
+                reader >> output;
+                return output;
+            }
+            return defaultValue;
+        }
+
         template <typename T> T Get(const std::string& name, const T& defaultValue) {
             for(std::vector<std::string>::iterator i = args.begin(); i != args.end() && i + 1 != args.end(); i++) {
                 if(*i == name) {
