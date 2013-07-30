@@ -15,28 +15,13 @@
 
 // accurate frame reading
 #include "repere.h"
+#include "binarize.h"
+#include "xml.h"
 
 #include <algorithm> 
 #include <functional> 
 #include <cctype>
 #include <locale>
-
-// trim from start
-static inline std::string &ltrim(std::string &s) {
-            s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-                    return s;
-}
-
-// trim from end
-static inline std::string &rtrim(std::string &s) {
-            s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-                    return s;
-}
-
-// trim from both ends
-static inline std::string &trim(std::string &s) {
-            return ltrim(rtrim(s));
-}
 
 namespace amu {
 
@@ -101,14 +86,21 @@ namespace amu {
                 return output.str();
             }
 
-            static bool StartsWith(const std::string& line, const std::string& pattern) {
-                return line.substr(0, pattern.length()) == pattern;
-            }
+            /*static std::vector<amu::Rect> ReadAll2(std::istream& input) {
+                std::vector<amu::Rect> rects;
+                Node* root = amu::ParseXML(input);
+                if(root == NULL) {
+                    return rects;
+                }
+                root->Print();
+                return rects;
+            }*/
 
             static std::vector<amu::Rect> ReadAll(std::istream& input, std::vector<std::string>& tail, int x_offset = 4, int y_offset = -1) {
                 std::vector<amu::Rect> rects;
                 std::vector<std::string> text;
                 double time = -1;
+                double duration = -1;
                 int x = -1, y = -1, width = -1, height = -1;
                 int line_num = 0;
                 while(!input.eof()) {
@@ -116,27 +108,33 @@ namespace amu {
                     if(!std::getline(input, line)) break;
                     //std::cerr << line << "\n";
                     line_num ++;
-                    if(StartsWith(line, "<Eid ")) {
-                        std::string timeString = line.substr(std::string("<Eid name=\"TextDetection\" taskName=\"TextDetectionTask\" position=\"").length());
-                        timeString = timeString.substr(0, timeString.find('"'));
+                    if(amu::StartsWith(line, "<Eid ")) {
+                        std::string positionString = line.substr(std::string("<Eid name=\"TextDetection\" taskName=\"TextDetectionTask\" position=\"").length());
+                        size_t timeEnd = positionString.find('"'); 
+                        std::string timeString = positionString.substr(0, timeEnd);
                         time = TimeFromString(timeString);
-                    } else if(StartsWith(line, "<IntegerInfo name=\"Position_X\">")) {
+                        size_t positionStart = timeEnd + std::string("\" position=\"").length();
+                        size_t positionEnd = positionString.find('"', positionStart + 1);
+                        std::string durationString = positionString.substr(positionStart, positionEnd - positionStart);
+                        duration = TimeFromString(durationString);
+                    } else if(amu::StartsWith(line, "<IntegerInfo name=\"Position_X\">")) {
                         x = strtol(line.substr(std::string("<IntegerInfo name=\"Position_X\">").length()).c_str(), NULL, 10);
-                    } else if(StartsWith(line, "<IntegerInfo name=\"Position_Y\">")) {
+                    } else if(amu::StartsWith(line, "<IntegerInfo name=\"Position_Y\">")) {
                         y = strtol(line.substr(std::string("<IntegerInfo name=\"Position_Y\">").length()).c_str(), NULL, 10);
-                    } else if(StartsWith(line, "<IntegerInfo name=\"Width\">")) {
+                    } else if(amu::StartsWith(line, "<IntegerInfo name=\"Width\">")) {
                         width = strtol(line.substr(std::string("<IntegerInfo name=\"Width\">").length()).c_str(), NULL, 10);
-                    } else if(StartsWith(line, "<IntegerInfo name=\"Height\">")) {
+                    } else if(amu::StartsWith(line, "<IntegerInfo name=\"Height\">")) {
                         height = strtol(line.substr(std::string("<IntegerInfo name=\"Height\">").length()).c_str(), NULL, 10);
                     }
                     text.push_back(line);
                     if(line == "</Eid>") {
-                        if(time == -1 || x == -1 || y == -1 || width == -1 || height == -1) {
+                        if(time == -1 || duration == -1 || x == -1 || y == -1 || width == -1 || height == -1) {
                             std::cerr << "WARNING: incomplete rectangle ending at line " << line_num << "\n";
                         }
-                        rects.push_back(amu::Rect(time, time, x + x_offset, y + y_offset, width - x_offset, height - y_offset, text));
+                        rects.push_back(amu::Rect(time, time + duration, x + x_offset, y + y_offset, width - x_offset, height - y_offset, text));
                         x = y = width = height = -1;
                         time = -1;
+                        duration = -1;
                         text.clear();
                     }
                 }
@@ -171,12 +169,18 @@ namespace amu {
             SetMixedCase();
         }
 
-        void SetUpperCase() {
-            tess.SetVariable("tessedit_char_whitelist", "!\"$%&'()+,-./0123456789:;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\_ «°»ÀÂÇÈÉÊËÎÏÔÙÚÛÜ€");
+        void SetUpperCase(bool ignoreAccents = false) {
+            if(ignoreAccents) 
+                tess.SetVariable("tessedit_char_whitelist", "!\"$%&'()+,-./0123456789:;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\_ «°»€");
+            else 
+                tess.SetVariable("tessedit_char_whitelist", "!\"$%&'()+,-./0123456789:;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\_ «°»ÀÂÇÈÉÊËÎÏÔÙÚÛÜ€");
         }
 
-        void SetMixedCase() {
-            tess.SetVariable("tessedit_char_whitelist", "!\"$%&'()+,-./0123456789:;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\_abcdefghijklmnopqrstuvwxyz «°»ÀÂÇÈÉÊËÎÏÔÙÚÛÜàâçèéêëîïôöùû€");
+        void SetMixedCase(bool ignoreAccents = false) {
+            if(ignoreAccents) 
+                tess.SetVariable("tessedit_char_whitelist", "!\"$%&'()+,-./0123456789:;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\_abcdefghijklmnopqrstuvwxyz «°»€");
+            else 
+                tess.SetVariable("tessedit_char_whitelist", "!\"$%&'()+,-./0123456789:;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\_abcdefghijklmnopqrstuvwxyz «°»ÀÂÇÈÉÊËÎÏÔÙÚÛÜàâçèéêëîïôöùû€");
         }
 
         ~OCR() {
@@ -215,7 +219,7 @@ namespace amu {
             tess.Recognize(NULL);
             const char* text = tess.GetUTF8Text();
             result.text = ProtectNewLines(std::string(text));
-            trim(result.text);
+            amu::Trim(result.text);
             delete text;
             result.confidence = tess.MeanTextConf() / 100.0;
             return result;
@@ -262,18 +266,21 @@ int main(int argc, char** argv) {
     options.AddUsage("  --data <directory>                tesseract model directory (containing tessdata/)\n");
     options.AddUsage("  --lang <language>                 tesseract model language (default fra)\n");
     options.AddUsage("  --upper-case                      contains only upper case characters\n");
+    options.AddUsage("  --ignore-accents                  do not predict letters with diacritics\n");
     options.AddUsage("  --sharpen                         sharpen image before processing\n");
     options.AddUsage("  --show                            show image beeing processed\n");
 
-    double zoom = options.Read("--scale", 1); // from video.Configure()
+    double zoom = options.Read("--scale", 1.0); // from video.Configure()
     std::string dataPath = options.Get<std::string>("--data", "");
     std::string lang = options.Get<std::string>("--lang", "fra");
     bool upper_case = options.IsSet("--upper-case");
+    bool ignore_accents = options.IsSet("--ignore-accents");
     bool sharpen = options.IsSet("--sharpen");
     bool show = options.IsSet("--show");
 
     amu::OCR ocr(dataPath, lang);
-    if(upper_case) ocr.SetUpperCase();
+    if(upper_case) ocr.SetUpperCase(ignore_accents);
+    else ocr.SetMixedCase(ignore_accents);
 
     amu::VideoReader video;
     if(!video.Configure(options)) return 1;
@@ -281,6 +288,7 @@ int main(int argc, char** argv) {
 
     std::vector<std::string> remaining;
     std::vector<amu::Rect> rects = amu::Rect::ReadAll(std::cin, remaining);
+    //std::vector<amu::Rect> rects = amu::Rect::ReadAll2(std::cin);
     std::stable_sort(rects.begin(), rects.end(), amu::RectLess());
     std::cerr << "read " << rects.size() << " rectangles\n";
 
@@ -291,43 +299,30 @@ int main(int argc, char** argv) {
 
     for(current = 0; current < rects.size(); current++) {
         video.SeekTime((rects[current].start + rects[current].end) / 2);
+        //video.SeekTime(rects[current].start);
         while(video.HasNext() && video.GetTime() <= rects[current].end) {
             video.ReadFrame(resized);
-            if(show) cv::imshow("original", resized(amu::Rect(rects[current], zoom)));
+
+            cv::Rect rect = amu::Rect(rects[current], zoom);
+            if(show) cv::imshow("original", resized(rect));
 
             if(sharpen) {
                 cv::Mat blured;
                 cv::GaussianBlur(resized, blured, cv::Size(0, 0), 3);
                 cv::addWeighted(resized, 1.5, blured, -0.5, 0, blured);
             }
-            cv::cvtColor(resized, resized, CV_BGR2GRAY);
-            
-            cv::Mat cropped;
-            double threshold =cv::threshold(resized(amu::Rect(rects[current], zoom)), cropped, 0, 255, cv::THRESH_BINARY|cv::THRESH_OTSU);
-            double ratio = (double) cv::countNonZero(cropped) / (cropped.rows * cropped.cols);
-            if(ratio < 0.5) cv::bitwise_not(cropped, cropped);
 
+            cv::Mat cropped = resized(rect);
+            
             ocr.SetImage(cropped);
             amu::Result result;
-            result.confidence = 0;
-            cv::Mat argmax;
+            result = ocr.Process();
 
-            for(int i = threshold - 32; i <= threshold + 32; i += 8) {
-                cv::threshold(resized(amu::Rect(rects[current], zoom)), cropped, i, 255, cv::THRESH_BINARY);
-                ocr.SetImage(cropped);
-                amu::Result current = ocr.Process();
-                if(current.confidence > result.confidence) {
-                    result = current;
-                    cropped.copyTo(argmax);
-                }
-            }
-            //ocr.SetRectangle(amu::Rect(rects[current], zoom));
-            //if(refine) result = ocr.RefineAndProcess(rects[current], zoom, y_start, y_end, y_step);
-            //result = ocr.Process();
+            std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
             for(size_t i = 0; i < rects[current].text.size(); i++) {
-                if(amu::Rect::StartsWith(rects[current].text[i], "<StringInfo name=\"Text\">")) {
-                        //std::cout << rects[current].text[i] << "\n";
-                        //std::cout << "<StringInfo time=\"" << amu::Rect::StringFromTime(time) << "\" name=\"TesseractText\">" << result.text << "</StringInfo>\n";
+                if(amu::StartsWith(rects[current].text[i], "<StringInfo name=\"Text\">")) {
+                    //std::cout << rects[current].text[i] << "\n";
+                    //std::cout << "<StringInfo time=\"" << amu::Rect::StringFromTime(time) << "\" name=\"TesseractText\">" << result.text << "</StringInfo>\n";
                     std::cout << "<StringInfo name=\"Text\">" << result.text << "</StringInfo>\n";
                     std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
                 } else {
@@ -335,9 +330,10 @@ int main(int argc, char** argv) {
                 }
             }
             if(show) {
-                cv::imshow("binarized", argmax);
+                cv::imshow("binarized", cropped);
                 cv::waitKey(0);
             }
+            break;
         }
         //std::cerr << frame << "/" << numFrames <<"\n";
     }

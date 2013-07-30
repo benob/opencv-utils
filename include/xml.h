@@ -20,21 +20,28 @@ namespace amu {
         Node(Node* _parent, const std::string&_name) : parent(_parent), name(_name) { }
 
         void Print(std::string prefix = "") {
-            std::cout << "<" << name;
-            for(std::tr1::unordered_map<std::string, std::string>::const_iterator i = attributes.begin(); i != attributes.end(); i++) {
-                std::cout << " " << i->first << "=\"" << i->second << "\"";
+            if(parent == NULL) {
+                std::cout << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+            }
+            if(parent != NULL) {
+                std::cout << "<" << name;
+                for(std::tr1::unordered_map<std::string, std::string>::const_iterator i = attributes.begin(); i != attributes.end(); i++) {
+                    std::cout << " " << i->first << "=\"" << i->second << "\"";
+                }
             }
             if(children.size() == 0 && text == "") {
-                std::cout << "/>";
+                if(parent != NULL) std::cout << "/>";
             } else {
-                std::cout << ">";
-                std::cout << text;
+                if(parent != NULL) {
+                    std::cout << ">";
+                    std::cout << text;
+                }
                 for(size_t i = 0; i < children.size(); i++) {
                     children[i]->Print(prefix + "    ");
                 }
-                std::cout << "</" << name << ">";
+                if(parent != NULL) std::cout << "</" << name << ">";
             }
-            std::cout << tail;
+            if(parent != NULL) std::cout << tail;
         }
 
         void Find(const std::string& _name, std::vector<Node*> &output, const std::string& attribute = "", const std::string& value = "") {
@@ -92,38 +99,39 @@ namespace amu {
         }
     }
 
-    Node* ParseXML(const char* filename) {
+    Node* ParseXML(std::istream &input) {
         XML_Parser parser = XML_ParserCreate(NULL);
         Node* root = new Node(NULL, "root");
         Node* current = root;
         XML_SetUserData(parser, &current);
         XML_SetElementHandler(parser, start_element, end_element);
         XML_SetCharacterDataHandler(parser, characters);
-        std::ifstream input(filename);
-        if(!input) {
-            std::cerr << "ERROR parsing " << filename << "\n";
-        }
         std::string line;
+        int line_num = 1;
         while(std::getline(input, line)) {
-            line += '\n';
-            if (!XML_Parse(parser, line.c_str(), line.length(), false)) {
-                std::cerr << "ERROR parsing " << filename << "\n";
+            line += "\n";
+            if (XML_Parse(parser, line.c_str(), line.length(), false) == XML_STATUS_ERROR) {
+                std::cerr << "ERROR parsing XML at line " << line_num << ": " << XML_ErrorString(XML_GetErrorCode(parser)) << "\n";
                 return NULL;
             }
+            line_num++;
         };
         if (!XML_Parse(parser, NULL, 0, true)) {
-            std::cerr << "ERROR parsing " << filename << "\n";
+            std::cerr << "ERROR parsing XML\n";
             return NULL;
         }
         XML_ParserFree(parser);
         return root;
     }
 
-    int ParseInt(const std::string& text) {
-        int output;
-        std::stringstream parser(text);
-        parser >> output;
-        return output;
+    Node* ParseXML(const std::string& filename) {
+        std::ifstream input(filename.c_str());
+        if(!input) {
+            std::cerr << "ERROR parsing " << filename << "\n";
+            return NULL;
+        }
+        return ParseXML(input);
     }
+
 
 }

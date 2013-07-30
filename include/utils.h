@@ -48,4 +48,32 @@ namespace amu {
         return filename.substr(0, slash + 1);
     }
 
+    // trim from start
+    inline std::string &LTrim(std::string &s) {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+        return s;
+    }
+
+    // trim from end
+    inline std::string &RTrim(std::string &s) {
+        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+        return s;
+    }
+
+    // trim from both ends
+    inline std::string &Trim(std::string &s) {
+        return LTrim(RTrim(s));
+    }
+
+    bool StartsWith(const std::string& line, const std::string& pattern) {
+        return line.substr(0, pattern.length()) == pattern;
+    }
+
+    int ParseInt(const std::string& text) {
+        int output;
+        std::stringstream parser(text);
+        parser >> output;
+        return output;
+    }
+
 }
