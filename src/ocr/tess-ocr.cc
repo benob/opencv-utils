@@ -5,10 +5,6 @@
 #include <fstream>
 #include <algorithm>
 
-// opencv
-#include <cv.h>
-#include <highgui.h>
-
 // tesseract
 #include <tesseract/baseapi.h>
 #include <tesseract/resultiterator.h>
