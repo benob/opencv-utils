@@ -14,6 +14,7 @@
     <span>View: <input type="radio" name="view" value="by-shot">By shot <input type="radio" name="view" value="by-label" checked>By label</span>
     <span><select id="show"></select></span>
     <button id="export" type="button">Export</button>
+    <button id="show-import-tab" type="button">Import</button>
     Annotator:
     <input id="annotator" type="text">
 </div>
@@ -21,5 +22,11 @@
     <div id="shots"></div>
 </div>
 <div id="by-label"> </div>
+<div id="import-tab">
+    <input type="file" id="files" name="files[]" /><br>
+    <div id="import-info"></div>
+    <div id="import-show-list"></div>
+    <button id="import" type="button">Import selected shows</button>
+</div>
 </body>
 </html>

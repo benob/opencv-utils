@@ -564,11 +564,12 @@ $(function() {
         if($(this).val() == 'by-shot') {
             $('#by-shot').show();
             $('#by-label').hide();
-            $('#by-shot').show();
+            $('#import-tab').hide();
             makeVisible($(".shot.selected"));
         } else if($(this).val() == 'by-label') {
             $('#by-shot').hide();
             $('#by-label').show();
+            $('#import-tab').hide();
             annotator.batchLabeler.update();
             var name = $('.shot.selected').attr('name');
             if('percol:' + name in localStorage) {
@@ -629,6 +630,73 @@ $(function() {
     }
     $('#annotator').change(function() {
         localStorage['annotatorName'] = $(this).val();
+    });
+
+    $('#import').prop('disabled', true);
+    $('#import-tab').hide();
+    $('#show-import-tab').click(function() {
+        $("input:radio[name='view']").prop('checked', false);
+        $('#by-shot').hide();
+        $('#by-label').hide();
+        $('#import-tab').show();
+    });
+
+    $('#files').change(function() {
+        var file = $('#files')[0].files[0];
+        $('#import-info').text('reading...');
+        var reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                var annotations = JSON.parse(event.target.result);
+                $('#import-info').text('This file contains ' + annotations.length + ' annotated shots.');
+                var shows = {};
+                for(var i in annotations) {
+                    var show = annotations[i].name.split('.')[0];
+                    if(!(show in shows)) shows[show] = 1;
+                    else shows[show]++;
+                }
+                console.log(shows);
+                $('#import-show-list').empty();
+                var sorted_shows = [];
+                for(var show in shows) {
+                    sorted_shows.push(show);
+                }
+                sorted_shows.sort();
+                for(var i in sorted_shows) {
+                    var show = sorted_shows[i];
+                    $('#import-show-list').append($('<input type="checkbox" value="' + show + '">'));
+                    $('#import-show-list').append(show + ' (' + shows[show] + ' shots)<br>');
+                }
+                $('#import').prop('disabled', false);
+                $('#import').click(function() {
+                    var selected_shows = {};
+                    $('#import-show-list input:checked').each(function() {
+                        selected_shows[$(this).val()] = 1;
+                    });
+                    var imported = 0, skipped = 0;
+                    for(var i in annotations) {
+                        if(annotations[i].name.split('.')[0] in selected_shows) {
+                            if('percol:' + annotations[i].name in localStorage) {
+                                var previous = JSON.parse(localStorage['percol:' + annotations[i].name]);
+                                if(previous.date > annotations[i].date) {
+                                    console.log('skipping ' + annotations[i].name);
+                                    skipped ++;
+                                    continue;
+                                }
+                            }
+                            localStorage['percol:' + annotations[i].name] = JSON.stringify(annotations[i]);
+                            imported ++;
+                        }
+                    }
+                    alert('Imported ' + imported + ' shot annotations.\nSkipped ' + skipped + ' because newer annotations exist.');
+                });
+
+            } catch (exception) {
+                $('#import-info').text('Invalid format.');
+                $('#import').prop('disabled', true);
+            }
+        };
+        reader.readAsText(file);
     });
 
 });

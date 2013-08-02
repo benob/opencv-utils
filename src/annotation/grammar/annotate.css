@@ -17,6 +17,10 @@
     margin-top: 3em;
 }
 
+#import-tab {
+    margin-top: 3em;
+}
+
 .annotator {
     position: fixed;
     left: 550px;
