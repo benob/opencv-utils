@@ -31,7 +31,7 @@ function Annotation(label) {
         var cardinality = parseInt(this.split);
         this.subshots = [];
         for(var i = 0; i < cardinality; i++) {
-            this.subshots.push({type: Config.subshots[0], persons: [],});
+            this.subshots.push({type: Config.subshots[0].replace(' ', ''), persons: [],});
         }
     } else if(typeof(label) == typeof('')) {
         var parts = label.split('=');
@@ -75,7 +75,7 @@ function exportAnnotation() {
     var result = [];
     for(var id in localStorage) {
         if(id.startsWith('percol:')) {
-            var annotation = JSON.parse(localStorage[id]);
+            var annotation = JSON.parse(localStorage[id].replace(' ', ''));
             result.push(annotation);
         }
     }
@@ -120,7 +120,7 @@ function BatchLabeler(type) {
         var seenLabels = {};
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
-                var annotation = JSON.parse(localStorage[id]);
+                var annotation = JSON.parse(localStorage[id].replace(' ', ''));
                 var label = new Annotation(annotation).toString();
                 if(!(label in seenLabels)) {
                     seenLabels[label] = [];
@@ -151,7 +151,7 @@ function BatchLabeler(type) {
         // list annotated shots with that label
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
-                var annotation = JSON.parse(localStorage[id]);
+                var annotation = JSON.parse(localStorage[id].replace(' ', ''));
                 if(new Annotation(annotation).toString() == label ) {
                     annotated[annotation.name] = 1;
                 }
@@ -218,7 +218,7 @@ function BatchLabeler(type) {
                     }
                 });
             if('percol:' + unannotated[i].name in localStorage) {
-                var shotLabel = new Annotation(JSON.parse(localStorage['percol:' + unannotated[i].name])).toString();
+                var shotLabel = new Annotation(JSON.parse(localStorage['percol:' + unannotated[i].name].replace(' ', ''))).toString();
                 $(img).addClass('hasLabel')
                     .attr('label', shotLabel)
                     .attr('title', shotLabel + '\ndistance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name);
@@ -239,17 +239,17 @@ function PersonAnnotation(type) {
     this.dom = $('<div></div>').addClass('person');
     this.role = $('<select></select>').addClass('role');
     for(var i in Config.roles) {
-        this.role.append($('<option></option>').attr('value', Config.roles[i]).text(Config.roles[i]));
+        this.role.append($('<option></option>').attr('value', Config.roles[i].replace(' ', '')).text(Config.roles[i]));
     }
     $(this.dom).append(this.role);
     this.pose = $('<select></select>').addClass('pose');
     for(var i in Config.poses) {
-        this.pose.append($('<option></option>').attr('value', Config.poses[i]).text(Config.poses[i]));
+        this.pose.append($('<option></option>').attr('value', Config.poses[i].replace(' ', '')).text(Config.poses[i]));
     }
     $(this.dom).append(this.pose);
     this.location = $('<select></select>').addClass('location');
     for(var i in Config.locations) {
-        this.location.append($('<option></option>').attr('value', Config.locations[i]).text(Config.locations[i]));
+        this.location.append($('<option></option>').attr('value', Config.locations[i].replace(' ', '')).text(Config.locations[i]));
     }
     $(this.dom).append(this.location);
     $(this.dom).find('select').change(function() {
@@ -264,7 +264,7 @@ function PersonAnnotation(type) {
         $(this.location).val(person.location);
     };
     this.setDefault = function() {
-        this.set({role: Config.roles[0], pose: Config.poses[0], location: Config.locations[0]});
+        this.set({role: Config.roles[0].replace(' ', ''), pose: Config.poses[0].replace(' ', ''), location: Config.locations[0].replace(' ', '')});
     }
     this.setDefault();
     this.dom[0].object = this;
@@ -276,9 +276,9 @@ function SubshotAnnotation(type) {
     this.dom = $('<div></div>').addClass('subshot');
     this.type = $('<select></select>').addClass('type');
     for(var i in Config.subshots) {
-        this.type.append($('<option></option>').attr('value', Config.subshots[i]).text(Config.subshots[i]));
+        this.type.append($('<option></option>').attr('value', Config.subshots[i].replace(' ', '')).text(Config.subshots[i]));
     };
-    $(this.type).val(Config.subshots[0]);
+    $(this.type).val(Config.subshots[0].replace(' ', ''));
     $(this.type).change(function() {
         $(this).parent()[0].object.fire('change');
     });
@@ -308,7 +308,7 @@ function SubshotAnnotation(type) {
         });
     }
     this.setDefault = function() {
-        this.set({type: Config.subshots[0], persons: []});
+        this.set({type: Config.subshots[0].replace(' ', ''), persons: []});
     };
     this.set = function(subshot) {
         $(this.type).val(subshot.type);
@@ -425,7 +425,7 @@ function MostSimilar(type) {
         var argmin = {};
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
-                var annotation = JSON.parse(localStorage[id]);
+                var annotation = JSON.parse(localStorage[id].replace(' ', ''));
                 var label = new Annotation(annotation).toString();
                 if(annotation.name != shot) {
                     var score = sim[shotIndex[shot].id][shotIndex[annotation.name].id];
@@ -494,7 +494,7 @@ function Annotator(type) {
     };
     this.copy = function(source, target) {
         if('percol:' + source in localStorage) {
-            var annotation = JSON.parse(localStorage['percol:' + source]);
+            var annotation = JSON.parse(localStorage['percol:' + source].replace(' ', ''));
             annotation.name = target;
             annotation.annotator = $('#annotator').val();
             annotation.date = new Date();
@@ -507,7 +507,7 @@ function Annotator(type) {
 
     this.load = function(shot) {
         if('percol:' + shot in localStorage) {
-            var annotation = JSON.parse(localStorage['percol:' + shot]);
+            var annotation = JSON.parse(localStorage['percol:' + shot].replace(' ', ''));
             this.splitSelector.set(annotation.split);
             this.shotLabels.set(annotation.subshots);
         } else {
@@ -573,7 +573,7 @@ $(function() {
             annotator.batchLabeler.update();
             var name = $('.shot.selected').attr('name');
             if('percol:' + name in localStorage) {
-                var annotation = JSON.parse(localStorage['percol:' + name]);
+                var annotation = JSON.parse(localStorage['percol:' + name].replace(' ', ''));
                 annotator.batchLabeler.set(new Annotation(annotation).toString());
                 console.log($(annotator.batchLabeler.labeledShots).find("[name='" + name + "']").click());
             }
@@ -634,20 +634,13 @@ $(function() {
 
     $('#import').prop('disabled', true);
     $('#import-tab').hide();
-    $('#show-import-tab').click(function() {
-        $("input:radio[name='view']").prop('checked', false);
-        $('#by-shot').hide();
-        $('#by-label').hide();
-        $('#import-tab').show();
-    });
-
     $('#files').change(function() {
         var file = $('#files')[0].files[0];
         $('#import-info').text('reading...');
         var reader = new FileReader();
         reader.onload = function(event) {
             try {
-                var annotations = JSON.parse(event.target.result);
+                var annotations = JSON.parse(event.target.result.replace(' ', ''));
                 $('#import-info').text('This file contains ' + annotations.length + ' annotated shots.');
                 var shows = {};
                 for(var i in annotations) {
@@ -677,7 +670,7 @@ $(function() {
                     for(var i in annotations) {
                         if(annotations[i].name.split('.')[0] in selected_shows) {
                             if('percol:' + annotations[i].name in localStorage) {
-                                var previous = JSON.parse(localStorage['percol:' + annotations[i].name]);
+                                var previous = JSON.parse(localStorage['percol:' + annotations[i].name].replace(' ', ''));
                                 if(previous.date > annotations[i].date) {
                                     console.log('skipping ' + annotations[i].name);
                                     skipped ++;
@@ -698,5 +691,12 @@ $(function() {
         };
         reader.readAsText(file);
     });
+    $('#show-import-tab').click(function() {
+        $("input:radio[name='view']").prop('checked', false);
+        $('#by-shot').hide();
+        $('#by-label').hide();
+        $('#import-tab').show();
+    });
+
 
 });
