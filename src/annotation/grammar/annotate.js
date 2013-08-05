@@ -25,6 +25,61 @@ var Config = {
     splits: ['1-full', '2-big-left', '2-horizontal', '3-big-left', '3-even', '4-big-right', '2-big-right', '2-vertical', '3-big-right', '4-big-left', '4-even', '1-other'],
 };
 
+/*var labelDict = {};
+var nextLabelId = 0;
+if('labelDict' in localStorage) {
+    labelDict = JSON.parse(localStorage['labelDict']);
+    nextLabelId = JSON.parse(localStorage['nextLabelId']);
+}
+
+function saveAnnotation(shot, label) {
+    if(!shot.startsWith('percol:')) shot = 'percol:' + shot;
+    label = JSON.stringify(label);
+    if(!(label in labelDict)) {
+        labelDict[label] = JSON.stringify(nextLabelId);
+        labelDict[nextLabelId] = label;
+        nextLabelId++;
+        localStorage['labelDict'] = JSON.stringify(labelDict);
+        localStorage['nextLabelId'] = JSON.stringify(nextLabelId);
+    }
+    localStorage[shot] = labelDict[label];
+}
+
+function loadAnnotation(shot) {
+    if(!shot.startsWith('percol:')) shot = 'percol:' + shot;
+    if(shot in localStorage) {
+        var label = JSON.parse(localStorage[shot]);
+        if(typeof(label) === 'number') {
+            if(!(label in labelDict)) {
+                alert('Annotation storage is broken!');
+            } 
+            return JSON.parse(labelDict[label]);
+        } else {
+            saveAnnotation(shot, label);
+            return label;
+        }
+    }
+    return null;
+}*/
+
+function saveAnnotation(shot, label) {
+    if(!shot.startsWith('percol:')) shot = 'percol:' + shot;
+    localStorage[shot] = JSON.stringify(label);
+}
+
+function loadAnnotation(shot) {
+    if(!shot.startsWith('percol:')) shot = 'percol:' + shot;
+    if(shot in localStorage) return JSON.parse(localStorage[shot]);
+    return null;
+}
+
+
+for(var id in localStorage) {
+    if(id.startsWith('percol:')) {
+        loadAnnotation(id);
+    }
+}
+
 function Annotation(label) {
     if(label == undefined) {
         this.split = Config.splits[0];
@@ -75,7 +130,7 @@ function exportAnnotation() {
     var result = [];
     for(var id in localStorage) {
         if(id.startsWith('percol:')) {
-            var annotation = JSON.parse(localStorage[id].replace(/ /g, ''));
+            var annotation = loadAnnotation(id);
             result.push(annotation);
         }
     }
@@ -120,7 +175,7 @@ function BatchLabeler(type) {
         var seenLabels = {};
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
-                var annotation = JSON.parse(localStorage[id].replace(/ /g, ''));
+                var annotation = loadAnnotation(id);
                 var label = new Annotation(annotation).toString();
                 if(!(label in seenLabels)) {
                     seenLabels[label] = [];
@@ -151,7 +206,7 @@ function BatchLabeler(type) {
         // list annotated shots with that label
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
-                var annotation = JSON.parse(localStorage[id].replace(/ /g, ''));
+                var annotation = loadAnnotation(id);
                 if(new Annotation(annotation).toString() == label ) {
                     annotated[annotation.name] = 1;
                 }
@@ -218,7 +273,7 @@ function BatchLabeler(type) {
                     }
                 });
             if('percol:' + unannotated[i].name in localStorage) {
-                var shotLabel = new Annotation(JSON.parse(localStorage['percol:' + unannotated[i].name].replace(/ /g, ''))).toString();
+                var shotLabel = new Annotation(loadAnnotation(unannotated[i].name)).toString();
                 $(img).addClass('hasLabel')
                     .attr('label', shotLabel)
                     .attr('title', shotLabel + '\ndistance: ' + unannotated[i].score + '\nshot: ' + unannotated[i].name);
@@ -425,7 +480,7 @@ function MostSimilar(type) {
         var argmin = {};
         for(var id in localStorage) {
             if(id.startsWith('percol:' + video)) {
-                var annotation = JSON.parse(localStorage[id].replace(/ /g, ''));
+                var annotation = loadAnnotation(id);
                 var label = new Annotation(annotation).toString();
                 if(annotation.name != shot) {
                     var score = sim[shotIndex[shot].id][shotIndex[annotation.name].id];
@@ -479,35 +534,43 @@ function Annotator(type) {
         .append(this.mostSimilar.dom);
 
     this.save = function (shot) {
-        if(shot in shotIndex) {
-            var annotation = {
-                name: shot,
-                split: this.splitSelector.get(),
-                subshots: this.shotLabels.get(),
-                label: this.get(),
-                annotator: $('#annotator').val(),
-                date: new Date(),
-            };
-            localStorage['percol:' + shot] = JSON.stringify(annotation);
-            $('img.shot[name="' + shot + '"]').addClass('annotated');
+        try {
+            if(shot in shotIndex) {
+                var annotation = {
+                    name: shot,
+                    split: this.splitSelector.get(),
+                    subshots: this.shotLabels.get(),
+                    label: this.get(),
+                    annotator: $('#annotator').val(),
+                    date: new Date(),
+                };
+                saveAnnotation(shot, annotation);
+                $('img.shot[name="' + shot + '"]').addClass('annotated');
+            }
+        } catch (exception) {
+            alert('Could not save annotation for ' + shot + '\n' + exception);
         }
     };
     this.copy = function(source, target) {
-        if('percol:' + source in localStorage) {
-            var annotation = JSON.parse(localStorage['percol:' + source].replace(/ /g, ''));
-            annotation.name = target;
-            annotation.annotator = $('#annotator').val();
-            annotation.date = new Date();
-            localStorage['percol:' + target] = JSON.stringify(annotation);
-            $('img.shot[name="' + target + '"]').addClass('annotated');
-        } else {
-            console.log('no annotation available for', source);
+        try {
+            if('percol:' + source in localStorage) {
+                var annotation = loadAnnotation(source);
+                annotation.name = target;
+                annotation.annotator = $('#annotator').val();
+                annotation.date = new Date();
+                saveAnnotation(target, annotation);
+                $('img.shot[name="' + target + '"]').addClass('annotated');
+            } else {
+                console.log('No annotation available for', source);
+            }
+        } catch(exception) {
+            alert('Could not copy annotation from ' + source + ' to ' + target + '\n' + exception);
         }
     }
 
     this.load = function(shot) {
         if('percol:' + shot in localStorage) {
-            var annotation = JSON.parse(localStorage['percol:' + shot].replace(/ /g, ''));
+            var annotation = loadAnnotation(shot);
             this.splitSelector.set(annotation.split);
             this.shotLabels.set(annotation.subshots);
         } else {
@@ -573,7 +636,7 @@ $(function() {
             annotator.batchLabeler.update();
             var name = $('.shot.selected').attr('name');
             if('percol:' + name in localStorage) {
-                var annotation = JSON.parse(localStorage['percol:' + name].replace(/ /g, ''));
+                var annotation = loadAnnotation(name);
                 annotator.batchLabeler.set(new Annotation(annotation).toString());
                 console.log($(annotator.batchLabeler.labeledShots).find("[name='" + name + "']").click());
             }
@@ -629,7 +692,11 @@ $(function() {
         $('#annotator').val(localStorage['annotatorName']);
     }
     $('#annotator').change(function() {
-        localStorage['annotatorName'] = $(this).val();
+        try {
+            localStorage['annotatorName'] = $(this).val();
+        } catch(exception) {
+            alert('Could not save annotator name\n' + exception);
+        }
     });
 
     $('#import').prop('disabled', true);
@@ -667,21 +734,26 @@ $(function() {
                         selected_shows[$(this).val()] = 1;
                     });
                     var imported = 0, skipped = 0;
-                    for(var i in annotations) {
-                        if(annotations[i].name.split('.')[0] in selected_shows) {
-                            if('percol:' + annotations[i].name in localStorage) {
-                                var previous = JSON.parse(localStorage['percol:' + annotations[i].name].replace(/ /g, ''));
-                                if(previous.date > annotations[i].date) {
-                                    console.log('skipping ' + annotations[i].name);
-                                    skipped ++;
-                                    continue;
+                    try {
+                        for(var i in annotations) {
+                            if(annotations[i].name.split('.')[0] in selected_shows) {
+                                if('percol:' + annotations[i].name in localStorage) {
+                                    var previous = loadAnnotation(annotations[i].name);
+                                    if(previous.date > annotations[i].date) {
+                                        console.log('skipping ' + annotations[i].name);
+                                        skipped ++;
+                                        continue;
+                                    }
                                 }
+                                saveAnnotation(annotations[i].name, annotations[i]);
+                                imported ++;
                             }
-                            localStorage['percol:' + annotations[i].name] = JSON.stringify(annotations[i]);
-                            imported ++;
                         }
+                        alert('Imported ' + imported + ' shot annotations.\nSkipped ' + skipped + ' because newer annotations exist.');
+                    } catch (exception) {
+                        alert('Could not import annotations\n' + exception);
                     }
-                    alert('Imported ' + imported + ' shot annotations.\nSkipped ' + skipped + ' because newer annotations exist.');
+                    $('#show').change();
                 });
 
             } catch (exception) {
