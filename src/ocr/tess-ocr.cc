@@ -296,7 +296,8 @@ int main(int argc, char** argv) {
     for(current = 0; current < rects.size(); current++) {
         video.SeekTime((rects[current].start + rects[current].end) / 2);
         //video.SeekTime(rects[current].start);
-        while(video.HasNext() && video.GetTime() <= rects[current].end) {
+        //while(video.HasNext() && video.GetTime() <= rects[current].end) {
+        if(video.HasNext()) {
             video.ReadFrame(resized);
 
             cv::Rect rect = amu::Rect(rects[current], zoom);
@@ -329,7 +330,7 @@ int main(int argc, char** argv) {
                 cv::imshow("binarized", cropped);
                 cv::waitKey(0);
             }
-            break;
+            //break;
         }
         //std::cerr << frame << "/" << numFrames <<"\n";
     }
