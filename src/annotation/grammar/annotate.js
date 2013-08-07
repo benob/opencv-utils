@@ -701,6 +701,12 @@ $(function() {
 
     $('#import').prop('disabled', true);
     $('#import-tab').hide();
+    $('#select-all').click(function() {
+        $('#import-show-list input').prop('checked', true);
+    });
+    $('#select-none').click(function() {
+        $('#import-show-list input').prop('checked', false);
+    });
     $('#files').change(function() {
         var file = $('#files')[0].files[0];
         $('#import-info').text('reading...');
