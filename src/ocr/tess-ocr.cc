@@ -294,10 +294,15 @@ int main(int argc, char** argv) {
     cv::Mat resized;
 
     for(current = 0; current < rects.size(); current++) {
-        video.SeekTime((rects[current].start + rects[current].end) / 2);
+        //video.SeekTime((rects[current].start + rects[current].end) / 2);
         //video.SeekTime(rects[current].start);
         //while(video.HasNext() && video.GetTime() <= rects[current].end) {
-        if(video.HasNext()) {
+        amu::Result result;
+        result.confidence = 0;
+        result.text = "TESSERACT_FAILED";
+        double time = (rects[current].start + rects[current].end) / 2;
+        video.SeekTime(time);
+        if(abs(video.GetTime() - time) < 1 && video.HasNext()) {
             video.ReadFrame(resized);
 
             cv::Rect rect = amu::Rect(rects[current], zoom);
@@ -312,25 +317,24 @@ int main(int argc, char** argv) {
             cv::Mat cropped = resized(rect);
             
             ocr.SetImage(cropped);
-            amu::Result result;
             result = ocr.Process();
 
-            std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
-            for(size_t i = 0; i < rects[current].text.size(); i++) {
-                if(amu::StartsWith(rects[current].text[i], "<StringInfo name=\"Text\">")) {
-                    //std::cout << rects[current].text[i] << "\n";
-                    //std::cout << "<StringInfo time=\"" << amu::Rect::StringFromTime(time) << "\" name=\"TesseractText\">" << result.text << "</StringInfo>\n";
-                    std::cout << "<StringInfo name=\"Text\">" << result.text << "</StringInfo>\n";
-                    std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
-                } else {
-                    std::cout << rects[current].text[i] << "\n";
-                }
-            }
             if(show) {
                 cv::imshow("binarized", cropped);
                 cv::waitKey(0);
             }
             //break;
+        }
+        std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
+        for(size_t i = 0; i < rects[current].text.size(); i++) {
+            if(amu::StartsWith(rects[current].text[i], "<StringInfo name=\"Text\">")) {
+                //std::cout << rects[current].text[i] << "\n";
+                //std::cout << "<StringInfo time=\"" << amu::Rect::StringFromTime(time) << "\" name=\"TesseractText\">" << result.text << "</StringInfo>\n";
+                std::cout << "<StringInfo name=\"Text\">" << result.text << "</StringInfo>\n";
+                std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
+            } else {
+                std::cout << rects[current].text[i] << "\n";
+            }
         }
         //std::cerr << frame << "/" << numFrames <<"\n";
     }
@@ -338,4 +342,4 @@ int main(int argc, char** argv) {
         std::cout << remaining[i] << "\n";
     }
     return 0;
-}
+    }
