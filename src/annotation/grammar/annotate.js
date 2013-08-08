@@ -684,7 +684,7 @@ $(function() {
     $('#show').change();
 
     $('#export').click(function() {
-        window.open('data:application/json;charset=utf-8,' + exportAnnotation());
+        window.open('data:application/json;charset=utf-8,' + escape(exportAnnotation()));
     });
 
     // save annotator name
