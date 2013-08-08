@@ -294,9 +294,6 @@ int main(int argc, char** argv) {
     cv::Mat resized;
 
     for(current = 0; current < rects.size(); current++) {
-        //video.SeekTime((rects[current].start + rects[current].end) / 2);
-        //video.SeekTime(rects[current].start);
-        //while(video.HasNext() && video.GetTime() <= rects[current].end) {
         amu::Result result;
         result.confidence = 0;
         result.text = "TESSERACT_FAILED";
@@ -315,6 +312,32 @@ int main(int argc, char** argv) {
             }
 
             cv::Mat cropped = resized(rect);
+
+            /*cv::Mat gray, grad_x, grad_y, abs_grad_x, abs_grad_y, grad;
+            cv::cvtColor(cropped, gray, CV_BGR2GRAY);
+            cv::Sobel(gray, grad_x, CV_16S, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT );
+            cv::Sobel(gray, grad_y, CV_16S, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT );
+            cv::convertScaleAbs( grad_x, abs_grad_x );
+            cv::convertScaleAbs( grad_y, abs_grad_y );
+            cv::imshow("o", cropped);
+            grad = cv::max(abs_grad_x, abs_grad_y);
+            cv::Mat tmp;
+
+            cv::threshold(grad, grad, 32, 255, cv::THRESH_BINARY_INV);
+            //cv::erode(grad, grad, cv::Mat());
+            //cv::erode(grad, grad, cv::Mat());
+            cv::imshow("x", grad);
+
+            std::vector < std::vector<cv::Point2i> > blobs;
+            amu::Binarize::FindBlobs(grad & 1, blobs);
+            cv::Mat blobShow(cv::Size(grad.cols, grad.rows), CV_8UC3);
+            amu::Binarize::DrawBlobs(blobShow, blobs);
+            cv::imshow("blobs", blobShow);*/
+
+
+            //cv::imshow("y", grad2);
+            //cv::waitKey(0);
+
             
             ocr.SetImage(cropped);
             result = ocr.Process();
