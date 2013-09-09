@@ -2,7 +2,7 @@ OPT:=-O3 -pipe
 CXXFLAGS:=`pkg-config opencv --cflags` -I. -Iinclude -g -MMD -Wall $(OPT) -flto
 LDFLAGS:=-Wl,--no-as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto
 
-PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii
+PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii hog-view extract-hog
 
 ############################### under the hood ######
 
