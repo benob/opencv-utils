@@ -670,18 +670,23 @@ $(function() {
                     annotator.set($(this).attr('name'));
                 });
                 $(image).attr('src', datadir + '/' + images[i])
-                    .attr('name', name);
+                    .attr('name', name)
+                    .attr('width', 512)
+                    .attr('height', 288);
                 $('#shots').append(image);
 
                 $('#by-label').empty().append(annotator.batchLabeler.dom);
             }
-            makeVisible($('#shots img:first-child').click());
+            if(location.search != '') {
+                setTimeout(function() { makeVisible($(".shot[name='" + location.search.substring(1) + "']").click()); }, 1000);
+            } else {
+                makeVisible($('#shots img:first-child').click());
+            }
             annotator.batchLabeler.update();
         };
         $('#shots').empty();
         $(document.head).append($('<script lang="javascript">').attr('src', 'data/' + show + '.js'));
     });
-    $('#show').change();
 
     $('#export').click(function() {
         window.open('data:application/json;charset=utf-8,' + escape(exportAnnotation()));
@@ -775,6 +780,13 @@ $(function() {
         $('#by-label').hide();
         $('#import-tab').show();
     });
+    if(location.search != '') {
+        var shot = location.search.substring(1);
+        var show = shot.split('.')[0];
+        $('#show').val(show).change();
+    } else {
+        $('#show').change();
+    }
 
 
 });
