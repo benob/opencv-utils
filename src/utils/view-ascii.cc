@@ -206,6 +206,7 @@ int main(int argc, char** argv) {
             cv::blur(gray, gray, cv::Size(3, 3), cv::Point(-1, -1));
         }
         for(int y = 0; y < height; y++) {
+            int lastBg = -1, lastFg = -1;
             for(int x = 0; x < width; x++) {
                 cv::Rect rect(x * 8, y * 12, 8, 12);
                 int fg, bg;
@@ -222,9 +223,11 @@ int main(int argc, char** argv) {
                     fg = bgr2ansi(cv::mean(resized(cv::Rect(x * 8, y * 12 + 6, 8, 6))));
                     bg = bgr2ansi(cv::mean(resized(cv::Rect(x * 8, y * 12, 8, 6))));
                 }
-                std::cout << "\033[48;5;" << (bg) << "m";
-                std::cout << "\033[38;5;" << (fg) << "m";
+                if(bg != lastBg) std::cout << "\033[48;5;" << (bg) << "m";
+                if(fg != lastFg) std::cout << "\033[38;5;" << (fg) << "m";
                 std::cout << mapping[found];
+                lastBg = bg;
+                lastFg = fg;
             }
             std::cout << "\033[0m\n";
         }
