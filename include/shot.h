@@ -138,4 +138,66 @@ namespace amu {
             return argmin;
         }
     };
+
+    struct TemplateMatcher {
+        static int Match(cv::Mat& image, std::vector<amu::Split>& templates, const std::string& type = "", int iterations = 100) {
+            cv::Mat gray, horizontal, vertical;
+            cv::cvtColor(image, gray, CV_BGR2GRAY);
+            cv::Sobel(gray, horizontal, CV_16S, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT );
+            cv::Sobel(gray, vertical, CV_16S, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT );
+            horizontal = cv::abs(horizontal);
+            vertical = cv::abs(vertical);
+            //cv::threshold(horizontal, horizontal, 192, 255, CV_THRESH_BINARY);
+            //cv::threshold(vertical, vertical, 192, 255, CV_THRESH_BINARY);
+
+            horizontal.convertTo(horizontal, CV_8U);
+            vertical.convertTo(vertical, CV_8U);
+
+            int argmax = -1;
+            double max = 0;
+            for(int i = 0; i < templates.size(); i++) {
+                const amu::Split& split = templates[i];
+                if(type != "" && split.type != type) continue;
+                for(int iteration = 0; iteration < 100; iteration++) {
+                    double sum = 0; // sum of gradients over rectangles
+                    double norm = 0;
+                    for(int j = 0; j < split.subshots.size(); j++) {
+                        amu::SubShot subshot = split.subshots[j]; // copy to modify
+
+                        // randomily move bounds
+                        if(iteration != 0) {
+                            subshot.x += rand() % 3 - 1;
+                            subshot.y += rand() % 3 - 1;
+                            subshot.width += rand() % 3 - 1;
+                            subshot.height += rand() % 3 - 1;
+                        }
+
+                        for(int x = subshot.x; x < subshot.x + subshot.width; x++) {
+                            sum += vertical.at<uchar>(subshot.y, x);
+                            sum += vertical.at<uchar>(subshot.y + subshot.height, x);
+                            //sum -= horizontal.at<uchar>(subshot.y, x);
+                            //sum -= horizontal.at<uchar>(subshot.y + subshot.height, x);
+                        }
+                        for(int y = subshot.y; y < subshot.y + subshot.height; y++) {
+                            sum += horizontal.at<uchar>(y, subshot.x);
+                            sum += horizontal.at<uchar>(y, subshot.x + subshot.width);
+                            //sum -= vertical.at<uchar>(y, subshot.x);
+                            //sum -= vertical.at<uchar>(y, subshot.x + subshot.width);
+                        }
+                        norm += subshot.width * 2 + subshot.height * 2;
+                    }
+                    sum /= 256 * norm;
+                    if(sum > max) {
+                        //std::cout << i << " " << sum << "\n";
+                        max = sum;
+                        argmax = i;
+                    }
+                }
+
+            }
+            return argmax;
+        }
+
+    };
+
 }
