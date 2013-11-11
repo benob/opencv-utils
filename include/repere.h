@@ -10,6 +10,7 @@
 
 #include "video.h"
 #include "idx.h"
+#include "shot.h"
 
 namespace amu {
 

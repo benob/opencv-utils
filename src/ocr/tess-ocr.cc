@@ -342,10 +342,6 @@ int main(int argc, char** argv) {
             ocr.SetImage(cropped);
             result = ocr.Process();
 
-            if(show) {
-                cv::imshow("binarized", cropped);
-                cv::waitKey(0);
-            }
             //break;
         }
         std::cerr << frame << " " << video.GetTime() << " " << result.text << "\n";
@@ -360,9 +356,13 @@ int main(int argc, char** argv) {
             }
         }
         //std::cerr << frame << "/" << numFrames <<"\n";
+            if(show) {
+                //cv::imshow("binarized", cropped);
+                cv::waitKey(0);
+            }
     }
     for(size_t i = 0; i < remaining.size(); i++) {
         std::cout << remaining[i] << "\n";
     }
     return 0;
-    }
+}

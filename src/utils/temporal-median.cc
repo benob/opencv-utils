@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     video.Seek(3000);
     int width = 1024 / 4, height = 576 / 4;
     int num_frames = 20;
-    cv::Mat images[num_frames];
+    std::vector<cv::Mat> images(num_frames);
     int c1[num_frames], c2[num_frames], c3[num_frames], c4[num_frames];
     cv::Mat output(cv::Size(width, height), CV_8UC3);
     while (video.HasNext()) {

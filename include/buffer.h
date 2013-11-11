@@ -39,6 +39,11 @@ namespace amu {
                 //delete _elements;
             }
 
+            void clear() {
+                _start = 0;
+                _end = 0;
+            }
+
             void pop() {
                 if(size() > 0) _end--;
             }

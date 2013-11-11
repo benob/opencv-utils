@@ -89,20 +89,36 @@ int main(int argc, char** argv) {
     double threshold = 1;
 
     amu::Buffer<cv::Mat> histogram(window); // histograms
-    amu::Buffer<int> frameNum(window); // frame number corresponding to an histogram
+    amu::Buffer<std::pair<int, double> > frameNum(window); // frame number corresponding to an histogram
 
     amu::Buffer<double> distances(window * 8); // histogram distance
-    amu::Buffer<int> indices(window * 8); // frame number corresponding to distances
+    amu::Buffer<std::pair<int, double> > indices(window * 8); // frame number corresponding to distances
 
     cv::Mat original;
     bool aboveMedian = false;
     double max = 0;
-    int argmax = -1;
+    std::pair<int, double> argmax;
+    std::pair<int, double> lastFrame;
+    std::pair<int, double> lastVideoFrame(-1, 0);
     cv::Mat image;
 
     while(video.HasNext() || distances.size() > 0) {
         if(video.ReadFrame(image)) {
-            frameNum.push(video.GetIndex());
+            if(lastVideoFrame.first != -1 && video.GetIndex() - lastVideoFrame.first > 10) { // reset
+                argmax = lastVideoFrame;
+                std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2  << " "
+                    << lastFrame.second << " " << argmax.second << " " << (lastFrame.second + argmax.second) / 2
+                    << " " << max << "\n" << std::flush;
+                lastFrame = std::pair<int, double>(video.GetIndex(), video.GetTime());
+                histogram.clear();
+                frameNum.clear();
+                distances.clear();
+                indices.clear();
+                aboveMedian = false;
+                max = 0;
+            }
+            frameNum.push(std::pair<int, double>(video.GetIndex(), video.GetTime()));
+            lastVideoFrame = frameNum[-1];
 
             HSVhistogram(image, histogram.push());
             distances.push(AverageDistanceCut(histogram));
@@ -114,7 +130,7 @@ int main(int argc, char** argv) {
             indices.shift();
         }
         double median = Median(distances);
-        int index = indices[distances.size() / 2];
+        std::pair<int, double> index = indices[distances.size() / 2];
         double distance = distances[distances.size() / 2];
         if(!aboveMedian && distance > median * factor && distance > threshold) {
             aboveMedian = true;
@@ -128,9 +144,18 @@ int main(int argc, char** argv) {
             }
             if(distance <= median * 2 || distance < threshold) {
                 aboveMedian = false;
-                std::cout << argmax << " " << max << "\n" << std::flush;
+                std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2 << " "
+                    << lastFrame.second << " " << argmax.second << " " << (lastFrame.second + argmax.second) / 2
+                    << " " << max << "\n" << std::flush;
+                lastFrame = argmax;
             }
         }
+    }
+    if(lastVideoFrame != lastFrame) {
+        argmax = lastVideoFrame;
+        std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2  << " "
+            << lastFrame.second << " " << argmax.second << " " << (lastFrame.second + argmax.second) / 2
+            << " " << max << "\n" << std::flush;
     }
 
     return 0;

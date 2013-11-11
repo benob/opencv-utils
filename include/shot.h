@@ -1,8 +1,69 @@
 #pragma once
 
+#include <iostream>
 #include <opencv2/opencv.hpp>
 
 namespace amu {
+
+    struct ShotSegment {
+        int startFrame;
+        int endFrame;
+        int frame;
+        double startTime;
+        double endTime;
+        double time;
+        double score;
+        ShotSegment(int _startFrame, int _endFrame, int _frame, double _startTime, double _endTime, double _time, double _score) : startFrame(_startFrame), endFrame(_endFrame), frame(_frame), startTime(_startTime), endTime(_endTime), time(_time), score(_score) { }
+        static bool ParseShotSegmentation(std::istream& input, std::vector<ShotSegment>& output) {
+            std::string line;
+            while(std::getline(input, line)) {
+                std::stringstream reader(line);
+                int startFrame, endFrame, frame; 
+                double startTime, endTime, time;
+                double score;
+                reader >> startFrame >> endFrame >> frame >> startTime >> endTime >> time >> score;
+                ShotSegment shot(startFrame, endFrame, frame, startTime, endTime, time, score);
+                output.push_back(shot);
+            }
+            return true;
+        }
+
+    };
+
+    struct SubShot {
+        int x;
+        int y;
+        int width;
+        int height;
+        SubShot(int _x, int _y, int _width, int _height) : x(_x), y(_y), width(_width), height(_height) { }
+    };
+
+    struct Split {
+        std::string type;
+        std::vector<amu::SubShot> subshots;
+        Split(const std::string& _type) : type(_type) { }
+        void Add(const SubShot& subshot) {
+            subshots.push_back(subshot);
+        }
+        static bool ParseTemplates(std::istream& input, std::vector<Split>& output, double scale = 1.0) {
+            std::string line;
+            while(std::getline(input, line)) {
+                std::stringstream reader(line);
+                std::string type;
+                int numSubshots;
+                reader >> type >> numSubshots;
+                amu::Split split(type);
+                for(int i = 0; i < numSubshots; i++) {
+                    int x, y, width, height;
+                    reader >> x >> y >> width >> height;
+                    split.Add(SubShot(x * scale, y * scale, width * scale, height * scale));
+                }
+                output.push_back(split);
+            }
+            return true;
+        }
+
+    };
 
     struct ShotSegmenter {
         cv::Mat previous;

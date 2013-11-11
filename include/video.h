@@ -33,6 +33,7 @@ namespace amu {
             bool deinterlace;
             cv::Size size;
             cv::Size lastReadSize;
+            std::string showname;
 
             std::map<int, std::string> images;
             std::map<int, std::string>::iterator currentImage;
@@ -67,7 +68,7 @@ namespace amu {
                         "  --end-frame <int>                 end video at that frame\n");
             }
 
-            bool Configure(CommandLine& options) {
+            bool Configure(CommandLine& options, bool failIfNotLoaded = true) {
                 AddUsage(options);
                 loaded = false;
                 std::string video = options.Get("--video", std::string(""));
@@ -75,7 +76,7 @@ namespace amu {
                 std::string imageDir = options.Get("--image-dir", amu::DirName(imageList));
                 std::string idx = options.Get("--idx", std::string(""));
                 std::string uem = options.Get("--uem", std::string(""));
-                std::string showname = options.Get("--uem-show", std::string(""));
+                showname = options.Get("--uem-show", std::string(""));
                 std::string size_string = options.Get("--size", std::string(""));
                 if(size_string != "") {
                     size_t xLocation = size_string.find("x");
@@ -104,8 +105,9 @@ namespace amu {
                     std::cerr << "ERROR: both video and image list specified\n";
                     return false;
                 }
-                if(video == "" && imageList == "") {
+                if(failIfNotLoaded && video == "" && imageList == "") {
                     options.Usage();
+                    return false;
                 }
 
                 if(imageList != "") LoadImageList(imageList, imageDir);
@@ -122,6 +124,10 @@ namespace amu {
                 if(start_frame != 0.0) Seek(start_frame);
 
                 return Loaded();
+            }
+
+            std::string GetShowName() {
+                return showname;
             }
 
             bool LoadVideo(const std::string& filename) {
@@ -223,7 +229,8 @@ namespace amu {
                     }
                     currentImage = found;
                     index = currentImage->first;
-                    this->time = idx->GetTime(index);
+                    if(idx != NULL) this->time = idx->GetTime(index);
+                    else this->time = 0;
                     return true;
                 } else {
                     video.set(CV_CAP_PROP_POS_FRAMES, frame);

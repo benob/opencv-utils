@@ -209,8 +209,8 @@ int main(int argc, char** argv) {
             int lastBg = -1, lastFg = -1;
             for(int x = 0; x < width; x++) {
                 cv::Rect rect(x * 8, y * 12, 8, 12);
-                int fg, bg;
-                int found;
+                int fg = 7, bg = 0;
+                int found = 32;
                 if(method == 1) {
                     cv::threshold(gray(rect), binarized, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
                     found = bestMatch(binarized);
@@ -222,6 +222,10 @@ int main(int argc, char** argv) {
                     found = 256 - 35;
                     fg = bgr2ansi(cv::mean(resized(cv::Rect(x * 8, y * 12 + 6, 8, 6))));
                     bg = bgr2ansi(cv::mean(resized(cv::Rect(x * 8, y * 12, 8, 6))));
+                    if(bg == fg) {
+                        fg = lastFg;
+                        found = 32;
+                    }
                 }
                 if(bg != lastBg) std::cout << "\033[48;5;" << (bg) << "m";
                 if(fg != lastFg) std::cout << "\033[38;5;" << (fg) << "m";

@@ -1,8 +1,9 @@
-OPT:=-O3 -pipe 
+OPT:=-O2 -pipe 
 CXXFLAGS:=`pkg-config opencv --cflags` -I. -Iinclude -g -MMD -Wall $(OPT) -flto
-LDFLAGS:=-Wl,--no-as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto
+LDFLAGS:=-Wl,--no-as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto -lcurses
+CXX=clang++
 
-PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii hog-view extract-hog
+PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii hog-view extract-hog cumulative-gradients subshot-from-template
 
 ############################### under the hood ######
 
