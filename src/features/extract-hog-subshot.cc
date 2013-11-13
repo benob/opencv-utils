@@ -6,8 +6,10 @@
 int main(int argc, char** argv) {
     amu::CommandLine options(argv, "[options]\n");
     options.AddUsage("  --templates <templates>               specify template definition file\n");
+    options.AddUsage("  --show                                show the extracted subshots\n");
 
     std::string templateFile = options.Get<std::string>("--templates", "");
+    bool show = options.IsSet("--show");
     if(options.Size() != 0 || templateFile == "") options.Usage();
 
     cv::HOGDescriptor hog(cv::Size(128, 64), cv::Size(16,16), cv::Size(8,8), cv::Size(8,8), 9);
@@ -55,6 +57,10 @@ int main(int argc, char** argv) {
                     cv::Mat gray;
                     cv::cvtColor(subImage, gray, CV_BGR2GRAY);
                     cv::resize(gray, gray, cv::Size(128, 64));
+                    if(show) {
+                        std::stringstream name; name << i;
+                        cv::imshow(name.str(), gray);
+                    }
 
                     std::vector<float> descriptorsValues;
                     std::vector<cv::Point> locations;
@@ -66,6 +72,7 @@ int main(int argc, char** argv) {
                     }
                     std::cout << "\n";
                 }
+                if(show) cv::waitKey(0);
             }
         }
     }
