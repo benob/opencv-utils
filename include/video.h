@@ -37,6 +37,7 @@ namespace amu {
 
             std::map<int, std::string> images;
             std::map<int, std::string>::iterator currentImage;
+            std::string currentImageName;
             cv::VideoCapture video;
 
         public:
@@ -145,13 +146,18 @@ namespace amu {
                 }
                 std::string line;
                 while(std::getline(input, line)) {
-                    std::stringstream reader(line);
-                    int frame;
-                    std::string filename;
-                    reader >> frame >> filename;
-                    images[frame] = dirname + "/" + filename;
+                    if(line.find(' ') || line.find('\t')) {
+                        std::stringstream reader(line);
+                        int frame;
+                        std::string filename;
+                        reader >> frame >> filename;
+                        images[frame] = dirname + "/" + filename;
+                    } else {
+                        images[images.size()] = line; // support for list of images
+                    }
                 }
                 currentImage = images.begin();
+                currentImageName = currentImage->second;
                 type = VideoType_ImageList;
                 loaded = true;
                 return true;
@@ -184,6 +190,16 @@ namespace amu {
                     }
                 }
                 return size;
+            }
+
+            std::string GetFrameName() {
+                if(type == VideoType_ImageList) return currentImageName;
+                else if(type == VideoType_Video) {
+                    std::stringstream name;
+                    name << showname << "_" << index;
+                    return name.str();
+                }
+                return "";
             }
 
             int NumFrames() {
@@ -229,6 +245,7 @@ namespace amu {
                     }
                     currentImage = found;
                     index = currentImage->first;
+                    if(currentImage != images.end()) currentImageName = currentImage->second;
                     if(idx != NULL) this->time = idx->GetTime(index);
                     else this->time = 0;
                     return true;
@@ -269,6 +286,7 @@ namespace amu {
                     index = currentImage->first;
                     if(idx) time = idx->GetTime(index);
                     currentImage++;
+                    if(currentImage != images.end()) currentImageName = currentImage->second;
                 } else if(type == VideoType_Video) {
                     index = video.get(CV_CAP_PROP_POS_FRAMES);
                     video.read(image);

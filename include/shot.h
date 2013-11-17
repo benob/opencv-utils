@@ -27,6 +27,14 @@ namespace amu {
             }
             return true;
         }
+        static bool ParseShotSegmentation(const std::string& filename, std::vector<ShotSegment>& output) {
+            std::ifstream input(filename.c_str());
+            if(!input) {
+                std::cerr << "ERROR: loading shots from \"" << filename << "\"\n";
+                return false;
+            }
+            return ParseShotSegmentation(input, output);
+        }
 
     };
 
@@ -61,6 +69,14 @@ namespace amu {
                 output.push_back(split);
             }
             return true;
+        }
+        static bool ParseTemplates(const std::string& filename, std::vector<Split>& output, double scale = 1.0) {
+            std::ifstream input(filename.c_str());
+            if(!input) {
+                std::cerr << "ERROR: loading templates from \"" << filename << "\"\n";
+                return false;
+            }
+            return ParseTemplates(input, output, scale);
         }
 
     };

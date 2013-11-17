@@ -50,9 +50,13 @@ int main(int argc, char** argv) {
     options.AddUsage("  --hog-model <model>               model as a text file containing a vector of weights\n");
     options.AddUsage("  --window <size>                   size of hog classifier (default=32)\n");
     options.AddUsage("  --shots <shots>                   shot boundaries\n");
+    options.AddUsage("  --groups <num>                    minimum number of detections that need to be clustered together to fire (default=2)\n");
+    options.AddUsage("  --threshold <threshold>           score decision threshold (default=0)\n");
     std::string hogModelFile = options.Get<std::string>("--hog-model", "");
     std::string shotFile = options.Get<std::string>("--shots", "");
     int window = options.Get("--window", 32);
+    double hitThreshold = options.Get("--threshold", 0.0);
+    int groupThreshold = options.Get("--groups", 2);
     double scale = options.Read("--scale", 1.0);
 
     amu::VideoReader video;
@@ -70,16 +74,14 @@ int main(int argc, char** argv) {
 
     cv::Mat image, gray;
     cv::Size size = video.GetSize();
-    for(size_t shot = 50; shot < shots.size(); shot++) {
+    for(size_t shot = 200; shot < shots.size(); shot++) {
         video.Seek(shots[shot].frame);
         video.ReadFrame(image);
         cv::cvtColor(image, gray, CV_BGR2GRAY);
         std::vector<cv::Rect> found;
-        int groupThreshold = 2;
         cv::Size padding(cv::Size(0, 0));
         cv::Size winStride(cv::Size(4, 4));
-        double hitThreshold = 2.5; // tolerance
-        hog.detectMultiScale(gray, found, hitThreshold, winStride, padding, 1.05, groupThreshold);
+        hog.detectMultiScale(gray, found, hitThreshold, winStride, padding, 1.1, groupThreshold);
         for(size_t i = 0; i < found.size(); i++) {
             cv::rectangle(image, found[i], cv::Scalar(64, 255, 64), 1);
         }

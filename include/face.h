@@ -100,6 +100,13 @@ namespace amu {
         }
     }
 
+    void Shrink(cv::Rect& rect, double factor) {
+        rect.x -= rect.width * factor / 2;
+        rect.y -= rect.height * factor / 2;
+        rect.width *= factor;
+        rect.height *= factor;
+    }
+
     std::vector<cv::Point> Shrinked(const std::vector<cv::Point>& polygon, const cv::Point& center, double factor = 0.5) {
         std::vector<cv::Point> output = polygon;
         Shrink(output, center, factor);

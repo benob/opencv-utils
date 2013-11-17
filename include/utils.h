@@ -48,6 +48,12 @@ namespace amu {
         return filename.substr(0, slash + 1);
     }
 
+    std::string BaseName(const std::string& filename) {
+        size_t slash = filename.rfind('/');
+        if(slash == std::string::npos) return filename;
+        return filename.substr(slash + 1);
+    }
+
     // trim from start
     inline std::string &LTrim(std::string &s) {
         s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
