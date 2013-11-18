@@ -101,8 +101,9 @@ namespace amu {
     }
 
     void Shrink(cv::Rect& rect, double factor) {
-        rect.x -= rect.width * factor / 2;
-        rect.y -= rect.height * factor / 2;
+        cv::Point center(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        rect.x = center.x - rect.width * factor / 2;
+        rect.y = center.y - rect.height * factor / 2;
         rect.width *= factor;
         rect.height *= factor;
     }

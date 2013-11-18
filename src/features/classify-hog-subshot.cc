@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
     for(size_t shot = 0; shot < shots.size(); shot++) {
         video.Seek(shots[shot].frame);
         video.ReadFrame(image);
-        std::string name = amu::BaseName(video.GetFrameName());
+        //std::string name = amu::BaseName(video.GetFrameName());
 
         cv::Mat gray;
         cv::cvtColor(image, gray, CV_BGR2GRAY);
@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
 
         int argmax = amu::TemplateMatcher::Match(image, templates, splitType);
         if(argmax != -1) {
-            std::cout << name << " " << splitType << "\n";
+            std::cout << shots[shot].frame << " " << -1 << " " << splitType << "\n";
             for(int i = 0; i < templates[argmax].subshots.size(); i++) {
                 const amu::SubShot subshot = templates[argmax].subshots[i];
                 cv::Mat subImage(image, cv::Rect(subshot.x, subshot.y, subshot.width, subshot.height));
@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
                 std::vector<cv::Point> locations;
                 hog.compute(gray, descriptorsValues, cv::Size(0,0), cv::Size(0,0), locations);
 
-                std::cout << name << ":" << i << " subshot";
+                std::cout << shots[shot].frame << " " << i << " subshot";
                 std::vector<float> features;
                 AddFeatures(splitType, i, video.GetShowName(), descriptorsValues, features);
                 for(size_t model = 0; model < models.size(); model++) {
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
                 std::cout << "\n";
             }
         } else {
-            std::cout << name << " " << splitType;
+            std::cout << shots[shot].frame << " " << -1 << " " << splitType;
             std::vector<float> features;
             AddFeatures(splitType, -1, video.GetShowName(), descriptorsValues, features);
             for(size_t model = 0; model < models.size(); model++) {
