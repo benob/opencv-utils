@@ -33,6 +33,12 @@ namespace amu {
         output = hue & saturation & value;
     }
 
+    double Skin(const cv::Mat& image, const cv::Rect& rect) {
+        cv::Mat cropped(image, rect), output;
+        GetSkinPixels(cropped, output);
+        return cv::sum(output & 1)[0] / (rect.width * rect.height);
+    }
+
     /** Reduce rectangle size to fit non-null pixels of a mask */
     cv::Rect AdjustToMask(const cv::Rect rect, const cv::Mat& mask) {
         cv::Mat reduced(mask, rect);
@@ -100,12 +106,20 @@ namespace amu {
         }
     }
 
-    void Shrink(cv::Rect& rect, double factor) {
-        cv::Point center(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    template <class T>
+    void Shrink(cv::Rect_<T>& rect, double factor) {
+        cv::Point_<T> center(rect.x + rect.width / 2, rect.y + rect.height / 2);
         rect.x = center.x - rect.width * factor / 2;
         rect.y = center.y - rect.height * factor / 2;
         rect.width *= factor;
         rect.height *= factor;
+    }
+
+    template <class T>
+    cv::Rect_<T> Shrinked(const cv::Rect_<T>& rect, double factor) {
+        cv::Rect_<T> output = rect;
+        Shrink(output, factor);
+        return output;
     }
 
     std::vector<cv::Point> Shrinked(const std::vector<cv::Point>& polygon, const cv::Point& center, double factor = 0.5) {
@@ -175,6 +189,10 @@ namespace amu {
         return cv::boundingRect(points);
     }
 
+    template <class T1, class T2>
+    bool Contains(const cv::Rect_<T1>& rect, const cv::Point_<T2>& point) {
+        return point.x >= rect.x && point.y >= rect.y && point.x <= rect.x + rect.width && rect.y <= rect.y + rect.height;
+    }
 
     cv::Point Center(const cv::vector<cv::Point>& points) {
         cv::Point output(0, 0);
@@ -185,10 +203,22 @@ namespace amu {
         return output;
     }
 
+    template <class T>
+    cv::Point_<T> Center(const cv::Rect_<T>& rect) {
+        return cv::Point_<T>(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    }
+
+    template <class T>
+    double Distance(const cv::Point_<T>& a, const cv::Point_<T>& b) {
+        return cv::norm(b - a);
+    }
+
     /** Fast approximation along axes */
-    cv::Point GeometricMedian(const cv::vector<cv::Point>& points) {
-        cv::Point median;
-        std::vector<double> values;
+    template <class T>
+    cv::Point_<T> GeometricMedian(const cv::vector<cv::Point_<T> >& points) {
+        if(points.size() == 0) return cv::Point_<T>();
+        cv::Point_<T> median;
+        std::vector<T> values;
         for(size_t i = 0; i < points.size(); i++) values.push_back(points[i].x);
         std::sort(values.begin(), values.end());
         median.x = values[values.size() / 2];
@@ -199,9 +229,11 @@ namespace amu {
         return median;
     }
 
-    cv::Rect MedianBoundingBox(const cv::vector<cv::Point>& points, const cv::Point center) {
-        cv::Rect rect;
-        std::vector<double> values; 
+    template <class T>
+    cv::Rect_<T> MedianBoundingBox(const cv::vector<cv::Point_<T> >& points, const cv::Point_<T>& center) {
+        if(points.size() == 0) return cv::Rect_<T>();
+        cv::Rect_<T> rect;
+        std::vector<T> values; 
         for(size_t i = 0; i < points.size(); i++) values.push_back(fabs(points[i].x - center.x));
         std::sort(values.begin(), values.end());
         rect.width = 8 * values[values.size() / 2];
@@ -213,7 +245,8 @@ namespace amu {
         return rect;
     }
 
-    double MedianDistance(const cv::vector<cv::Point>& points, const cv::Point& center) {
+    template <class T>
+    double MedianDistance(const cv::vector<cv::Point_<T> >& points, const cv::Point_<T> & center) {
         if(points.size() == 0) return 0;
         std::vector<double> distances; 
         for(size_t i = 0; i < points.size(); i++) {
@@ -291,6 +324,7 @@ namespace amu {
     struct Tracker {
         cv::vector<cv::Point2f> points, matchedPoints;
         cv::Mat previous;
+        cv::Rect_<float> rect;
 
         void AddModel(const cv::Mat& gray, const cv::vector<cv::Point>& polygon) {
             points.clear();
@@ -298,36 +332,88 @@ namespace amu {
                 points.push_back((polygon[i]));
             }
             gray.copyTo(previous);
+            matchedPoints = points;
+            rect = BoundingBox(points);
+        }
+
+        void AddModel(const cv::Mat& gray, const cv::Rect& rect) {
+            cv::Mat mask(gray.size(), CV_8UC1);
+            mask.setTo(cv::Scalar(0));
+            cv::rectangle(mask, rect, cv::Scalar(255), -1);
+            AddModel(gray, mask);
+            this->rect = rect;
+            this->rect = Rect();
+            //gray.copyTo(previous);
+            //points = matchedPoints;
+            points.clear();
+            cv::Rect_<float> smaller = Shrinked(rect, .5);
+            for(size_t i = 0; i < matchedPoints.size(); i++) {
+                if(amu::Contains(smaller, matchedPoints[i])) {
+                    points.push_back(matchedPoints[i]);
+                }
+            }
         }
 
         void AddModel(const cv::Mat& gray, const cv::Mat& mask) {
-            cv::goodFeaturesToTrack(gray, points, 100, 0.01, 3, mask);
+            cv::goodFeaturesToTrack(gray, points, 100, 0.01, 5, mask);
             gray.copyTo(previous);
+            matchedPoints = points;
+            rect = BoundingBox(points);
         }
 
-        bool Find(const cv::Mat& gray, bool keepOriginal = false) {
+        cv::Rect_<float> Rect() {
+            cv::Point_<float> oldCenter = GeometricMedian<float>(points);
+            cv::Rect_<float> oldBoundingBox = MedianBoundingBox<float>(points, oldCenter);
+
+            cv::Point_<float> newCenter = GeometricMedian<float>(matchedPoints);
+            cv::Rect_<float> newBoundingBox = MedianBoundingBox<float>(matchedPoints, newCenter);
+
+            cv::Point_<float> movedCenter = Center<float>(rect) - oldCenter + newCenter; 
+            double movedWidth = rect.width * newBoundingBox.width / oldBoundingBox.width;
+            double movedHeight = rect.height * newBoundingBox.height / oldBoundingBox.height;
+
+            return cv::Rect_<float>(movedCenter.x - movedWidth / 2, movedCenter.y - movedHeight / 2, movedWidth, movedHeight);
+        }
+
+        bool Matches(const cv::Rect_<float>& other, double ratio = .3) {
+            cv::Rect_<float> intersection = rect & other;
+            return intersection == rect || intersection == other || intersection.area() > ratio * rect.area() || intersection.area() > ratio * other.area();
+        }
+
+        bool Find(const cv::Mat& gray, double ratio = .5, bool keepOriginal = false) {
             if(points.size() == 0) return false;
+            bool found = true;
             std::vector<cv::Point2f> newPoints;
             std::vector<uchar> status;
             std::vector<float> error;
             cv::calcOpticalFlowPyrLK(previous, gray, points, newPoints, status, error);
             matchedPoints.clear();
             for(size_t i = 0; i < newPoints.size(); i++) {
-                if(status[i] == 1) {
+                if(status[i] == 1 && amu::Distance(points[i], newPoints[i]) < 20) {
                     matchedPoints.push_back(newPoints[i]);
                 }
             }
+            found = matchedPoints.size() > points.size() * ratio;
             if(keepOriginal == false) {
+                rect = Rect();
                 gray.copyTo(previous);
-                points = matchedPoints;
+                //points = matchedPoints;
+                points.clear();
+                cv::Rect_<float> smaller = Shrinked(rect, .5);
+                for(size_t i = 0; i < matchedPoints.size(); i++) {
+                    if(amu::Contains(smaller, matchedPoints[i])) {
+                        points.push_back(matchedPoints[i]);
+                    }
+                }
             }
-            return matchedPoints.size() > points.size() / 2;
+            return found;
         }
 
-        void Draw(cv::Mat& display, int size = 3, cv::Scalar color = cv::Scalar(255, 0, 0)) {
+        void Draw(cv::Mat& display, int size = 3, cv::Scalar color = cv::Scalar(0, 0, 255)) {
             for(size_t i = 0; i < matchedPoints.size(); i++) {
                 cv::circle(display, matchedPoints[i], size, color, CV_FILLED);
             }
+            cv::rectangle(display, rect, cv::Scalar(0, 255, 0), 1);
         }
     };
 

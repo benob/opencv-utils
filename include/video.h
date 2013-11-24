@@ -34,6 +34,7 @@ namespace amu {
             cv::Size size;
             cv::Size lastReadSize;
             std::string showname;
+            bool videoFinished;
 
             std::map<int, std::string> images;
             std::map<int, std::string>::iterator currentImage;
@@ -41,7 +42,7 @@ namespace amu {
             cv::VideoCapture video;
 
         public:
-            VideoReader(const std::string& filename = "", const std::string& dirname = "") : idx(NULL), index(0), time(0), loaded(false), type(VideoType_None), frameSkip(0), deinterlace(false), size(0, 0) {
+            VideoReader(const std::string& filename = "", const std::string& dirname = "") : idx(NULL), index(0), time(0), loaded(false), type(VideoType_None), frameSkip(0), deinterlace(false), size(0, 0), videoFinished(true) {
                 if(filename != "") {
                     if(dirname != "") {
                         LoadImageList(filename, dirname);
@@ -135,6 +136,7 @@ namespace amu {
                 if(video.open(filename) == false) return false;
                 type = VideoType_Video;
                 loaded = true;
+                videoFinished = false;
                 return true;
             }
 
@@ -258,12 +260,15 @@ namespace amu {
             }
 
             bool HasNext() {
+                if(videoFinished) return false;
                 if(type == VideoType_ImageList) {
                     std::map<int, std::string>::iterator other = currentImage;
                     other++;
                     return currentImage != images.end() && other != images.end();
                 }
-                else return GetIndex() + 1 < NumFrames();
+                else {
+                    return GetIndex() + 1 < NumFrames();
+                }
             }
 
             int GetIndex() const {
@@ -277,20 +282,25 @@ namespace amu {
             bool ReadFrame(cv::Mat& resized, int interpolation = cv::INTER_LANCZOS4) {
                 cv::Mat image;
                 if(type == VideoType_ImageList) {
-                    if(currentImage == images.end()) return false;
-                    image = cv::imread(currentImage->second);
-                    if(image.rows == 0) {
-                        std::cerr << "ERROR: could not read " << currentImage->second << "\n";
+                    if(currentImage == images.end()) {
+                        videoFinished = true;
                         return false;
                     }
+                    image = cv::imread(currentImage->second);
                     index = currentImage->first;
                     if(idx) time = idx->GetTime(index);
                     currentImage++;
                     if(currentImage != images.end()) currentImageName = currentImage->second;
+                    if(image.rows == 0) {
+                        std::cerr << "ERROR: could not read " << currentImage->second << "\n";
+                        return false;
+                    }
                 } else if(type == VideoType_Video) {
                     index = video.get(CV_CAP_PROP_POS_FRAMES);
-                    video.read(image);
-                    if(image.rows == 0) return false;
+                    if(video.read(image) == false || image.empty() || image.rows == 0) {
+                        videoFinished = true;
+                        return false;
+                    }
                     time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
                 }
                 if(deinterlace) {

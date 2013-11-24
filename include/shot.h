@@ -171,13 +171,13 @@ namespace amu {
 
             int argmax = -1;
             double max = 0;
-            for(int i = 0; i < templates.size(); i++) {
+            for(size_t i = 0; i < templates.size(); i++) {
                 const amu::Split& split = templates[i];
                 if(type != "" && split.type != type) continue;
                 for(int iteration = 0; iteration < 100; iteration++) {
                     double sum = 0; // sum of gradients over rectangles
                     double norm = 0;
-                    for(int j = 0; j < split.subshots.size(); j++) {
+                    for(size_t j = 0; j < split.subshots.size(); j++) {
                         amu::SubShot subshot = split.subshots[j]; // copy to modify
 
                         // randomily move bounds

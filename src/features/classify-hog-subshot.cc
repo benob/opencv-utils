@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
                     std::cout << " " << models[model].Classify(features);
                 }
 
-                std::cout << "\n";
+                std::cout << " " << subshot.x << " " << subshot.y << " " << subshot.width << " " << subshot.height << "\n";
             }
         } else {
             std::cout << shots[shot].frame << " " << -1 << " " << splitType;
@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
             for(size_t model = 0; model < models.size(); model++) {
                 std::cout << " " << models[model].Classify(features);
             }
-            std::cout << "\n";
+            std::cout << " 0 0 1024 576\n";
         }
 
         if(show) {
