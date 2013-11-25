@@ -21,7 +21,8 @@ namespace amu {
                     std::stringstream reader(line);
                     Detection detection;
                     reader >> detection.frame >> detection.location.x >> detection.location.y >> detection.location.width >> detection.location.height >> detection.skin >> detection.model;
-                    if(detection.model == 0 && detection.skin > .3) output.push_back(detection);
+                    //if(detection.model == 0 && detection.skin > .3) 
+                    output.push_back(detection);
                 }
             } else {
                 std::cerr << "ERROR: loading \"" << filename << "\"\n";
@@ -55,12 +56,14 @@ int main(int argc, char** argv) {
 
     std::map<int, std::vector<amu::Detection> > detections = amu::Detection::LoadByFrame(detectionFilename);
 
+    int num = 0;
+    std::string showname = amu::ShowName(shotFilename);
     for(std::vector<amu::ShotSegment>::iterator shot = shots.begin(); shot != shots.end(); shot++) {
         std::map<int, std::vector<amu::Detection> >::iterator frame = detections.find(shot->startFrame);
         std::list<std::vector<amu::Detection> > tracks;
         while(frame != detections.end() && frame->first < shot->endFrame) {
             for(std::vector<amu::Detection>::iterator detection = frame->second.begin(); detection != frame->second.end(); detection++) {
-                if(detection->model > 2 || detection->skin < 0.3) continue;
+                if(detection->model > 0 || detection->skin < 0.3) continue;
                 bool found = false;
                 for(std::list<std::vector<amu::Detection> >::iterator track = tracks.begin(); track != tracks.end(); track++) {
                     const amu::Detection &other = track->back();
@@ -78,15 +81,17 @@ int main(int argc, char** argv) {
                     tracks.push_back(track);
                 }
             }
+            frame++;
         }
         for(std::list<std::vector<amu::Detection> >::iterator track = tracks.begin(); track != tracks.end(); track++) {
-            std::cout << "showname" << " " << shot->startTime << " " << shot->endTime;
+            std::cout << showname << " " << shot->startTime << " " << shot->endTime << " head Inconnu_" << num;
             for(std::vector<amu::Detection>::iterator detection = track->begin(); detection != track->end(); detection++) {
-                std::cout << " ||| x=" << detection->location.x << " y=" << detection->location.y 
+                std::cout << " || frame=" << detection->frame << " x=" << detection->location.x << " y=" << detection->location.y 
                     << " width=" << detection->location.width << " height=" << detection->location.height 
                     << " model=" << detection->model;
             }
             std::cout << "\n";
+            num += 1;
         }
     }
 
