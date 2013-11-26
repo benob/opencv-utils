@@ -1,9 +1,9 @@
 OPT:=-O0 
 CXXFLAGS:=`pkg-config opencv --cflags` -I. -Iinclude -g -MMD -Wall $(OPT) #-flto
-LDFLAGS:=-Wl,--no-as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto -lcurses -lfann
+LDFLAGS:=-Wl,--as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto -lcurses -lfann
 CXX=clang++
 
-PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii hog-view extract-hog cumulative-gradients subshot-from-template extract-hog-subshot track-faces-in-shots get-hog-training-data detect-from-hog get-hog-extra-negatives classify-hog-subshot detector-performance get-hog-fddb tracker-from-detections merge-detections
+PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii hog-view extract-hog cumulative-gradients subshot-from-template extract-hog-subshot track-faces-in-shots get-hog-training-data detect-from-hog get-hog-extra-negatives classify-hog-subshot detector-performance get-hog-fddb tracker-from-detections merge-detections simple-detector
 
 ############################### under the hood ######
 
@@ -19,10 +19,14 @@ MAKEFLAGS+=-s -j$(shell grep ^processor /proc/cpuinfo |wc -l)
 .SUFFIXES:
 
 # bundle executable with libraries
-bin/%.bundle: bin/%
+bin/%.bundle: bin/%.strip
 	@echo "  BUNDLE $@"
 	@mkdir -p bin
 	scripts/make-bundle $< $@
+
+# strip executable
+bin/%.strip: bin/%
+	strip $< -o $@
 
 # rule for creating executables including extra objects
 bin/%: .compile/%.o $(OBJ)
