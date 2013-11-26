@@ -10,8 +10,10 @@ PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-sho
 # main targets: build executables, make bundles and clean
 all: $(addprefix bin/,$(PROGS))
 bundle: $(addprefix bin/,$(PROGS:=.bundle))
+bundle-dir: $(addprefix bin-with-libs/,$(PROGS))
+
 clean:
-	rm -rf .compile/* bin/*
+	rm -rf .compile/* bin/* bin-with-libs
 
 MAKEFLAGS+=-s -j$(shell grep ^processor /proc/cpuinfo |wc -l)
 
@@ -23,6 +25,10 @@ bin/%.bundle: bin/%.strip
 	@echo "  BUNDLE $@"
 	@mkdir -p bin
 	scripts/make-bundle $< $@
+
+bin-with-libs/%: bin/%
+	@echo "  BUNDLE-DIR $@"
+	scripts/make-bundle-dir $< bin-with-libs
 
 # strip executable
 bin/%.strip: bin/%

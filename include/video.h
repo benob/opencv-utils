@@ -162,6 +162,7 @@ namespace amu {
                 currentImageName = currentImage->second;
                 type = VideoType_ImageList;
                 loaded = true;
+                videoFinished = false;
                 return true;
             }
 

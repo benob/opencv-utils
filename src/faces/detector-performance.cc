@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
     for(std::map<int, std::vector<int> >::iterator frame = frames.begin(); frame != frames.end(); frame++) {
         video.Seek(frame->first);
         video.ReadFrame(image);
-        std::cerr << frame->first << "\n";
+        //std::cerr << frame->first << "\n";
         for(size_t p = 0; p < frame->second.size(); p++) {
             Person& person = persons[frame->second[p]];
             amu::Scale(person.rect, scale);

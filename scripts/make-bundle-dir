@@ -1,0 +1,39 @@
+#!/bin/bash
+
+if [ $# != 2 ]
+then
+    echo "usage: $0 <executable> <output-dir>"
+    echo "    bundle executable and libraries in a directory, by <benoit.favre@lif.univ-mrs.fr> 2013-11-26"
+    exit 1
+fi
+
+if [ `file -b "$1" | cut -f1 -d" "` != 'ELF' ]; then
+    echo "error: \"$1\" is not an executable"
+    exit 1
+fi
+
+binary=`basename $1`
+output=$2
+
+target=$output/bundle
+mkdir -p "$target"
+
+set -o errexit -o pipefail
+
+# generate directory with all libraries + loader
+cp $1 "$target/$binary"
+cp `ldd "$1" | grep ld-linux | awk '{print $1}'` "$target/ld-linux"
+mkdir -p "$target/lib"
+find $target/lib | xargs chmod u+w
+ldd "$1" | awk 'NF == 4 {print $3}' | xargs cp -n -t "$target/lib"
+
+# generate script to uncompress and exectute binary
+(
+cat <<EOF
+#!/bin/bash
+dir=\`dirname \$0\`
+exec "\$dir/bundle/ld-linux" --library-path "\$dir/bundle/lib" "\$dir/bundle/$binary" \$@
+EOF
+) > "$output/$binary"
+
+chmod +x "$output/$binary"
