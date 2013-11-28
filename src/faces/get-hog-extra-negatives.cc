@@ -137,22 +137,36 @@ int main(int argc, char** argv) {
                 centered.width = person.rect.height;
                 centered.height = person.rect.height;
             }
-            int border = (centered.width * (grow - 1)) / 2;
-            cv::Mat face(image, centered);
-            cv::Mat extended(face.rows * grow, face.cols * grow, face.depth());
-            cv::copyMakeBorder(face, extended, border, border, border, border, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
-            //cv::imshow("face", extended);
-            //cv::waitKey(0);
-            cv::resize(extended, extended, cv::Size(window, window));
+            person.rect = centered;
+            amu::Shrink(person.rect, 1.5);
+            amu::Shrink(centered, 0.8);
+            for(int i = 0; i < 4; i++) {
+                int border = (centered.width * (grow - 1)) / 2;
+                cv::Mat face(image, centered);
+                cv::Mat extended(face.rows * grow, face.cols * grow, face.depth());
+                cv::copyMakeBorder(face, extended, border, border, border, border, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+                //cv::imshow("face", extended);
+                //cv::waitKey(0);
+                cv::resize(extended, extended, cv::Size(window, window));
 
-            //cv::rectangle(image, person.rect, cv::Scalar(255, 0, 0), 1);
-            //cv::rectangle(image, extended, cv::Scalar(0, 255, 0), 1);
-            PrintDescriptors(hog, extended, "+1");
-            cv::flip(extended, extended, 1);
-            PrintDescriptors(hog, extended, "+1");
+                //cv::rectangle(image, person.rect, cv::Scalar(255, 0, 0), 1); // bleu
+                //cv::rectangle(image, extended, cv::Scalar(0, 255, 0), 1);
+                PrintDescriptors(hog, extended, "+1");
+                cv::flip(extended, extended, 1);
+                PrintDescriptors(hog, extended, "+1");
+                amu::Shrink(centered, 1.1);
+            }
 
         }
+        int smallestFace = -1;
+        for(size_t p = 0; p < frame->second.size(); p++) {
+            Person& person = persons[frame->second[p]];
+            if(smallestFace == -1 || person.rect.area() < smallestFace) {
+                smallestFace = person.rect.area();
+            }
+        }
         int numNegative = 0;
+        int numTries = 0;
         do {
             cv::Rect rect;
             rect.x = rand() % (size.width - 16);
@@ -162,23 +176,25 @@ int main(int argc, char** argv) {
             rect.width = rand() % (size.width - rect.x - 16) + 16;
             if(rect.width + rect.y > size.height) continue;
             rect.height = rect.width;
-
-            bool overlap = false;
-            for(size_t p = 0; p < frame->second.size(); p++) {
-                if((persons[frame->second[p]].rect & rect).area() > persons[frame->second[p]].rect.area() / 2) {
-                    overlap = true;
-                    break;
+            //if(rect.area() >= smallestFace) {
+                bool overlap = false;
+                for(size_t p = 0; p < frame->second.size(); p++) {
+                    if((persons[frame->second[p]].rect & rect).area() > persons[frame->second[p]].rect.area() / 2) {
+                        overlap = true;
+                        break;
+                    }
                 }
-            }
-            if(!overlap) {
-                cv::Mat negative(image, rect);
-                cv::Mat resized;
-                cv::resize(negative, resized, cv::Size(window, window));
-                PrintDescriptors(hog, resized, "-1");
-                numNegative++;
-                //cv::rectangle(image, rect, cv::Scalar(0, 0, 255), 1);
-            }
-        } while(numNegative < negatives);
+                if(!overlap) {
+                    cv::Mat negative(image, rect);
+                    cv::Mat resized;
+                    cv::resize(negative, resized, cv::Size(window, window));
+                    PrintDescriptors(hog, resized, "-1");
+                    numNegative++;
+                    //cv::rectangle(image, rect, cv::Scalar(0, 0, 255), 1);
+                }
+            //}
+            numTries++;
+        } while(numNegative < negatives && numTries < negatives * 4);
 
         if(hogModelFile != "") {
             std::vector<cv::Rect> found;
@@ -201,9 +217,9 @@ int main(int argc, char** argv) {
                     cv::Mat resized;
                     cv::resize(negative, resized, cv::Size(window, window));
                     PrintDescriptors(hog, resized, "-1");
-                    //cv::rectangle(image, found[i], cv::Scalar(0, 255, 0), 1);
-                } else {
                     //cv::rectangle(image, found[i], cv::Scalar(0, 0, 255), 1);
+                } else {
+                    //cv::rectangle(image, found[i], cv::Scalar(0, 255, 0), 1);
                 }
             }
             //cv::imshow("image", image);
