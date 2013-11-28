@@ -16,6 +16,8 @@ clean:
 	rm -rf .compile/* bin/* bin-with-libs
 
 MAKEFLAGS+=-s -j$(shell grep ^processor /proc/cpuinfo |wc -l)
+GIT_VERSION:=$(shell git describe --abbrev=6 --dirty --always)
+CXXFLAGS+="-DVERSION=\"$(GIT_VERSION), $(shell date)\""
 
 # disable implicit rules
 .SUFFIXES:

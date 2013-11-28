@@ -23,6 +23,9 @@ namespace amu {
 
         void Usage(bool leave = true) {
             std::cerr << "usage: " << progname << " " << usage << "\n";
+#ifdef VERSION
+            std::cerr << "build: " << VERSION << "\n";
+#endif
             if(leave) exit(1);
         }
 

@@ -98,12 +98,13 @@ int main(int argc, char** argv) {
     bool aboveMedian = false;
     double max = 0;
     std::pair<int, double> argmax;
-    std::pair<int, double> lastFrame;
+    std::pair<int, double> lastFrame(-1, 0);
     std::pair<int, double> lastVideoFrame(-1, 0);
     cv::Mat image;
 
     while(video.HasNext() || distances.size() > 0) {
         if(video.ReadFrame(image)) {
+            if(lastFrame.first == -1) lastFrame = std::pair<int, double>(video.GetIndex(), video.GetTime());
             if(lastVideoFrame.first != -1 && video.GetIndex() - lastVideoFrame.first > 10) { // reset
                 argmax = lastVideoFrame;
                 std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2  << " "
@@ -151,6 +152,7 @@ int main(int argc, char** argv) {
             }
         }
     }
+    if(lastFrame.first == -1) lastFrame = lastVideoFrame;
     if(lastVideoFrame != lastFrame) {
         argmax = lastVideoFrame;
         std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2  << " "
