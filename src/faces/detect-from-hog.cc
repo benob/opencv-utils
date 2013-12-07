@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 
     cv::Mat image, gray;
     cv::Size size = video.GetSize();
-    for(size_t shot = 200; shot < shots.size(); shot++) {
+    for(size_t shot = 300; shot < shots.size(); shot++) {
         video.Seek(shots[shot].frame);
         video.ReadFrame(image);
         cv::cvtColor(image, gray, CV_BGR2GRAY);

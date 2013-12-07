@@ -20,7 +20,7 @@ bool ReadLibLinearModel(const std::string& filename, std::vector<float>& model) 
             float value;
             reader >> value;
             model.push_back(value);
-            std::cout << value << "\n";
+            //std::cout << value << "\n";
         }
     }
     return true;
@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
         video.ReadFrame(image);
         for(size_t p = 0; p < frame->second.size(); p++) {
             Person& person = persons[frame->second[p]];
-            std::cerr << person.name << "\n";
+            //std::cerr << person.name << "\n";
             amu::Scale(person.rect, scale);
 
             cv::Rect centered;
@@ -137,16 +137,23 @@ int main(int argc, char** argv) {
                 centered.width = person.rect.height;
                 centered.height = person.rect.height;
             }
+            amu::Shrink(centered, grow * 0.8);
             person.rect = centered;
-            amu::Shrink(person.rect, 1.5);
-            amu::Shrink(centered, 0.8);
+            //amu::Shrink(person.rect, 1.5);
+            person.rect = centered;
             for(int i = 0; i < 4; i++) {
-                int border = (centered.width * (grow - 1)) / 2;
+                int border = centered.width;
+                cv::Mat bordered;
+                cv::copyMakeBorder(image, bordered, border, border, border, border, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+                cv::Mat extended(bordered, centered + cv::Point(border, border));
+
+                /*int border = (centered.width * (grow - 1)) / 2;
                 cv::Mat face(image, centered);
                 cv::Mat extended(face.rows * grow, face.cols * grow, face.depth());
-                cv::copyMakeBorder(face, extended, border, border, border, border, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));
+                cv::copyMakeBorder(face, extended, border, border, border, border, cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0));*/
                 //cv::imshow("face", extended);
                 //cv::waitKey(0);
+                if(extended.empty()) continue;
                 cv::resize(extended, extended, cv::Size(window, window));
 
                 //cv::rectangle(image, person.rect, cv::Scalar(255, 0, 0), 1); // bleu
