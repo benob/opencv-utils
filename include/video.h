@@ -35,6 +35,8 @@ namespace amu {
             cv::Size lastReadSize;
             std::string showname;
             bool videoFinished;
+            int endFrame;
+            int endTime;
 
             std::map<int, std::string> images;
             std::map<int, std::string>::iterator currentImage;
@@ -42,7 +44,7 @@ namespace amu {
             cv::VideoCapture video;
 
         public:
-            VideoReader(const std::string& filename = "", const std::string& dirname = "") : idx(NULL), index(0), time(0), loaded(false), type(VideoType_None), frameSkip(0), deinterlace(false), size(0, 0), videoFinished(true) {
+            VideoReader(const std::string& filename = "", const std::string& dirname = "") : idx(NULL), index(0), time(0), loaded(false), type(VideoType_None), frameSkip(0), deinterlace(false), size(0, 0), videoFinished(true), endFrame(-1), endTime(-1) {
                 if(filename != "") {
                     if(dirname != "") {
                         LoadImageList(filename, dirname);
@@ -99,9 +101,9 @@ namespace amu {
                 frameSkip = options.Get("--frame-skip", 0);
                 deinterlace = options.IsSet("--deinterlace");
                 double start = options.Get("--start", 0.0);
-                double end = options.Get("--end", 0.0);
+                endTime = options.Get("--end", -1);
                 int start_frame = options.Get("--start-frame", 0);
-                int end_frame = options.Get("--end-frame", 0);
+                endFrame = options.Get("--end-frame", -1);
 
                 if(video != "" && imageList != "") {
                     std::cerr << "ERROR: both video and image list specified\n";
@@ -281,6 +283,8 @@ namespace amu {
             }
 
             bool ReadFrame(cv::Mat& resized, int interpolation = cv::INTER_LANCZOS4) {
+                if(endTime != -1 && time >= endTime) return false;
+                if(endFrame != -1 && index >= endFrame) return false;
                 cv::Mat image;
                 if(type == VideoType_ImageList) {
                     if(currentImage == images.end()) {
