@@ -51,10 +51,10 @@ namespace amu {
             std::map<std::string, ShotCluster> output;
             std::string line;
             while(std::getline(input, line)) {
-                std::stringstream reader;
-                std::string file, dummy, id;
+                std::stringstream reader(line);
+                std::string dummy, id;
                 int start, duration;
-                reader >> file >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
+                reader >> dummy >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
                 ShotCluster& cluster = output[id];
                 cluster.frames.push_back(start + (int) (duration / 2));
             }
@@ -91,26 +91,30 @@ int main(int argc, char** argv) {
     }
 
     cv::Size size = video.GetSize();
-    int width = 16;
-    int height = (clusters.size() / 16) + 1;
-    int tileWidth = size.width / 8;
-    int tileHeight = size.height / 8;
+    int width = 8;
+    int height = (clusters.size() / width) + 1;
+    int tileWidth = size.width / 4;
+    int tileHeight = size.height / 4;
 
     cv::Mat result(cv::Size(tileWidth * width, tileHeight * height), CV_8UC3);
     int shotNum = 0;
     for(std::map<std::string, amu::ShotCluster>::iterator cluster = clusters.begin(); cluster != clusters.end(); cluster++) {
         cv::Mat image;
         for(std::vector<int>::iterator frame = cluster->second.frames.begin(); frame != cluster->second.frames.end(); frame++) {
+            std::cout << cluster->first << " " << *frame << "\n";
             video.Seek(*frame);
             video.ReadFrame(image);
             cv::Mat target(result, cv::Rect((shotNum % width) * tileWidth, (shotNum / width) * tileHeight, tileWidth, tileHeight));
-            cv::resize(image, target, cv::Size(tileWidth, tileHeight));
+            cv::resize(image, target, cv::Size(tileWidth, tileHeight), cv::INTER_AREA);
             cv::rectangle(result, cv::Rect((shotNum % width) * tileWidth, (shotNum / width) * tileHeight, tileWidth, tileHeight), cv::Scalar(0, 0, 0), 1);
             shotNum++;
+            cv::imshow("clustering", result);
+            cv::waitKey(10);
         }
-        cv::rectangle(result, cv::Rect((shotNum % width) * tileWidth, (shotNum / width) * tileHeight, 1, tileHeight), cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(result, cv::Rect((shotNum % width) * tileWidth - 4, (shotNum / width) * tileHeight, 2, tileHeight), cv::Scalar(0, 0, 255), 2);
     }
     cv::imshow("clustering", result);
+    cv::waitKey(0);
 
     return 0;
 }

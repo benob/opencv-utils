@@ -38,58 +38,145 @@ namespace amu {
             return output;
         }
     };
+
+    // file 1 0 6182 U U U S1
+    struct ShotCluster {
+        std::string id;
+        std::vector<int> frames;
+
+        static std::map<std::string, ShotCluster> Read(std::ifstream& input) {
+            std::map<std::string, ShotCluster> output;
+            std::string line;
+            while(std::getline(input, line)) {
+                std::stringstream reader(line);
+                std::string dummy, id;
+                int start, duration;
+                reader >> dummy >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
+                ShotCluster& cluster = output[id];
+                cluster.frames.push_back(start + (int) (duration / 2));
+            }
+            return output;
+        }
+
+        static std::map<std::string, ShotCluster> Read(const std::string& filename) {
+            std::ifstream input(filename.c_str());
+            if(!input) {
+                std::cerr << "ERROR: could not read \"" << filename << "\"\n";
+                return std::map<std::string, ShotCluster>();
+            } else {
+                return Read(input);
+            }
+        }
+
+        static std::vector<amu::ShotSegment> ReadMerged(std::ifstream& input, const amu::Idx& idx) {
+            std::vector<amu::ShotSegment> output;
+            std::string line;
+            int previousStart = -1;
+            int previousEnd = -1;
+            std::string previousId = "";
+            while(std::getline(input, line)) {
+                std::stringstream reader(line);
+                std::string dummy, id;
+                int start, duration;
+                reader >> dummy >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
+                if(previousId != id && previousStart != -1) {
+                    //std::cerr << previousStart << " " << previousEnd << " " << previousId << "\n";
+                    output.push_back(amu::ShotSegment(previousStart, previousEnd, 0, idx.GetTime(previousStart), idx.GetTime(previousEnd), 0 ,0));
+                    previousStart = start;
+                }
+                if(previousStart == -1) previousStart = start;
+                previousEnd = start + duration; 
+                previousId = id;
+            }
+            if(previousStart != -1) {
+                output.push_back(amu::ShotSegment(previousStart, previousEnd, 0, idx.GetTime(previousStart), idx.GetTime(previousEnd), 0 ,0));
+            }
+            return output;
+        }
+
+        static std::vector<amu::ShotSegment> ReadMerged(const std::string& filename, const amu::Idx& idx) {
+            std::ifstream input(filename.c_str());
+            if(!input) {
+                std::cerr << "ERROR: could not read \"" << filename << "\"\n";
+                return std::vector<amu::ShotSegment>();
+            } else {
+                return ReadMerged(input, idx);
+            }
+        }
+
+    };
 }
 
 int main(int argc, char** argv) {
 
     amu::CommandLine options(argv, "[options]\n");
     options.AddUsage("  --shots <shot-file>               shot segmentation output\n");
+    options.AddUsage("  --clustering <cluster-file>       shot clustering output\n");
     options.AddUsage("  --detections <detection-file>     haar detector ourput for each frame\n");
+    options.AddUsage("  --idx <idx-file>                  idx for converting frames to times\n");
+    options.AddUsage("  --min-detect <int>                minimum number of detections in track (default=5)\n");
+    options.AddUsage("  --min-density <float>             minimum density of detections in track (default=0.5)\n");
 
     std::string shotFilename = options.Get<std::string>("--shots", "");
+    std::string clusteringFilename = options.Get<std::string>("--clustering", "");
     std::string detectionFilename = options.Get<std::string>("--detections", "");
+    std::string idxFilename = options.Get<std::string>("--idx", "");
+    int minDetections = options.Get("--min-detect", 5);
+    double minDensity = options.Get("--min-density", 0.5);
 
-    if(options.Size() != 0 || shotFilename == "" || detectionFilename == "") options.Usage();
-
+    if(options.Size() != 0 || (shotFilename == "" && clusteringFilename == "") || detectionFilename == "" || (clusteringFilename != "" && idxFilename == "")) options.Usage();
     std::vector<amu::ShotSegment> shots;
-    amu::ShotSegment::ParseShotSegmentation(shotFilename, shots);
+    if(shotFilename != "") {
+        amu::ShotSegment::ParseShotSegmentation(shotFilename, shots);
+    } else {
+        amu::Idx idx(idxFilename);
+        shots = amu::ShotCluster::ReadMerged(clusteringFilename, idx);
+    }
+    std::string showname = amu::ShowName(detectionFilename);
 
     std::map<int, std::vector<amu::Detection> > detections = amu::Detection::LoadByFrame(detectionFilename);
 
+    typedef std::map<int, amu::Detection> Track;
+
     int num = 0;
-    std::string showname = amu::ShowName(shotFilename);
     for(std::vector<amu::ShotSegment>::iterator shot = shots.begin(); shot != shots.end(); shot++) {
         std::map<int, std::vector<amu::Detection> >::iterator frame = detections.lower_bound(shot->startFrame);
         if(frame == detections.end() || frame->first < shot->startFrame || frame->first > shot->endFrame) continue;
-        std::list<std::vector<amu::Detection> > tracks;
+        std::list<Track> tracks;
         while(frame != detections.end() && frame->first < shot->endFrame) {
             for(std::vector<amu::Detection>::iterator detection = frame->second.begin(); detection != frame->second.end(); detection++) {
                 //if(detection->model > 0 || detection->skin < 0.3) continue;
                 bool found = false;
-                for(std::list<std::vector<amu::Detection> >::iterator track = tracks.begin(); track != tracks.end(); track++) {
-                    const amu::Detection &other = track->back();
+                for(std::list<Track>::iterator track = tracks.begin(); track != tracks.end(); track++) {
+                    const amu::Detection &other = track->rbegin()->second;
                     cv::Rect intersection = detection->location & other.location;
                     if(intersection == detection->location || intersection == other.location 
                             || intersection.area() > .8 * detection->location.area() || intersection.area() > .8 * other.location.area()) {
                         found = true;
-                        track->push_back(*detection);
+                        if(track->find(detection->frame) == track->end() || (*track)[detection->frame].model > detection->model) {
+                            (*track)[detection->frame] = *detection;
+                        }
                         break;
                     }
                 }
                 if(!found) {
-                    std::vector<amu::Detection> track;
-                    track.push_back(*detection);
+                    Track track;
+                    track[detection->frame] = *detection;
                     tracks.push_back(track);
                 }
             }
             frame++;
         }
-        for(std::list<std::vector<amu::Detection> >::iterator track = tracks.begin(); track != tracks.end(); track++) {
+        for(std::list<Track>::iterator track = tracks.begin(); track != tracks.end(); track++) {
+            //std::cerr << track->size() << " " << shot->endFrame - shot->startFrame << " " << (double)track->size() / (shot->endFrame - shot->startFrame) << "\n";
+            double density = (double)track->size() / (shot->endFrame - shot->startFrame);
+            if(track->size() < minDetections || density < minDensity) continue;
             std::cout << showname << " " << shot->startTime << " " << shot->endTime << " head Inconnu_" << num;
-            for(std::vector<amu::Detection>::iterator detection = track->begin(); detection != track->end(); detection++) {
-                std::cout << " || frame=" << detection->frame << " x=" << detection->location.x << " y=" << detection->location.y 
-                    << " w=" << detection->location.width << " h=" << detection->location.height 
-                    << " model=" << detection->model;
+            for(Track::iterator iterator = track->begin(); iterator != track->end(); iterator++) {
+                const amu::Detection& detection = iterator->second;
+                std::cout << " || frame=" << detection.frame << " x=" << detection.location.x << " y=" << detection.location.y 
+                    << " w=" << detection.location.width << " h=" << detection.location.height 
+                    << " model=" << detection.model;
             }
             std::cout << "\n";
             num += 1;

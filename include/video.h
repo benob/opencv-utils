@@ -173,6 +173,10 @@ namespace amu {
                 return idx->Loaded();
             }
 
+            const Idx* GetIdx() {
+                return idx;
+            }
+
             bool LoadUem(const std::string& filename, const std::string& showname) {
                 uem.Load(filename, showname);
                 return uem.Loaded();
