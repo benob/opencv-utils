@@ -35,6 +35,8 @@ namespace amu {
         }
 
         bool Load(const std::string& filename) {
+            frame2time.clear();
+            time2frame.clear();
             std::ifstream input(filename.c_str());
             if(!input) {
                 std::cerr << "ERROR: reading " << filename << "\n";
@@ -50,9 +52,34 @@ namespace amu {
                 double time = 0;
                 tokenizer >> frame >> type >> offset >> time;
                 frame2time.push_back(std::pair<int, double>(frame, time));
-                time2frame.push_back(std::pair<double, int>(time, frame));
             }
             std::stable_sort(frame2time.begin(), frame2time.end(), amu::FrameLess());
+
+            // force idx to be monotonic
+            size_t i = 0;
+            while (i < frame2time.size()) {
+                size_t j = i + 1;
+                while (j < frame2time.size() && frame2time[j].second < frame2time[i].second) {
+                    j += 1;
+                }
+                if (j > i + 1) {
+                    double delta = 0;
+                    if (j < frame2time.size()) {
+                        delta = (frame2time[j].second - frame2time[i].second) / (frame2time[j].first - frame2time[i].first);
+                    }
+                    std::pair<int, double> start = frame2time[i];
+                    i = i + 1;
+                    while (i < j) {
+                        frame2time[i] = std::pair<int, double>(frame2time[i].first, start.second + (frame2time[i].first - start.first) * delta);
+                        i += 1;
+                    }
+                }
+                i = j;
+            }
+
+            for(i = 0; i < frame2time.size(); i++) {
+                time2frame.push_back(std::pair<double, int>(frame2time[i].second, frame2time[i].first));
+            }
             std::stable_sort(time2frame.begin(), time2frame.end(), amu::TimeLess());
             loaded = true;
             return true;
