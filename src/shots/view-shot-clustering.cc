@@ -55,8 +55,10 @@ namespace amu {
                 std::string dummy, id;
                 int start, duration;
                 reader >> dummy >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
-                ShotCluster& cluster = output[id];
-                cluster.frames.push_back(start + (int) (duration / 2));
+                //std::cout << id << " " << start << "\n";
+                //ShotCluster& cluster = output[id];
+                //cluster.id = id;
+                output[id].frames.push_back(start + (int) (duration / 2));
             }
             return output;
         }
@@ -84,24 +86,27 @@ int main(int argc, char** argv) {
     if(options.Size() != 0 || clusteringFilename == "") options.Usage();
 
     std::map<std::string, amu::ShotCluster> clusters = amu::ShotCluster::Read(clusteringFilename);
+    std::cerr << "num = " << clusters.size() << "\n";
 
-    int maxFrames = 0;
+    /*int maxFrames = 0;
     for(std::map<std::string, amu::ShotCluster>::iterator cluster = clusters.begin(); cluster != clusters.end(); cluster++) {
         if(cluster->second.frames.size() > maxFrames) maxFrames = cluster->second.frames.size();
-    }
+    }*/
 
     cv::Size size = video.GetSize();
-    int width = 8;
+    int width = 16;
     int height = (clusters.size() / width) + 1;
-    int tileWidth = size.width / 4;
-    int tileHeight = size.height / 4;
+    int tileWidth = size.width / 8;
+    int tileHeight = size.height / 8;
 
     cv::Mat result(cv::Size(tileWidth * width, tileHeight * height), CV_8UC3);
     int shotNum = 0;
     for(std::map<std::string, amu::ShotCluster>::iterator cluster = clusters.begin(); cluster != clusters.end(); cluster++) {
+        if(cluster->first == "") continue;
+        //std::cerr << cluster->first << "\n";
         cv::Mat image;
         for(std::vector<int>::iterator frame = cluster->second.frames.begin(); frame != cluster->second.frames.end(); frame++) {
-            std::cout << cluster->first << " " << *frame << "\n";
+            //std::cout << cluster->first << " " << *frame << "\n";
             video.Seek(*frame);
             video.ReadFrame(image);
             cv::Mat target(result, cv::Rect((shotNum % width) * tileWidth, (shotNum / width) * tileHeight, tileWidth, tileHeight));
@@ -111,7 +116,7 @@ int main(int argc, char** argv) {
             cv::imshow("clustering", result);
             cv::waitKey(10);
         }
-        cv::rectangle(result, cv::Rect((shotNum % width) * tileWidth - 4, (shotNum / width) * tileHeight, 2, tileHeight), cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(result, cv::Rect((shotNum % width) * tileWidth - 4, (shotNum / width) * tileHeight, 2, tileHeight), cv::Scalar(0, 0, 255), 4);
     }
     cv::imshow("clustering", result);
     cv::waitKey(0);
