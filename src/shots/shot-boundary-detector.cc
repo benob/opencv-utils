@@ -101,12 +101,15 @@ int main(int argc, char** argv) {
     std::pair<int, double> lastFrame(-1, 0);
     std::pair<int, double> lastVideoFrame(-1, 0);
     cv::Mat image;
+    int shotId = 0;
 
     while(video.HasNext() || distances.size() > 0) {
         if(video.ReadFrame(image)) {
             if(lastFrame.first == -1) lastFrame = std::pair<int, double>(video.GetIndex(), video.GetTime());
             if(lastVideoFrame.first != -1 && video.GetIndex() - lastVideoFrame.first > 10) { // reset
                 argmax = lastVideoFrame;
+                std::cout << video.GetShowName() << " " << lastFrame.second << " " << argmax.second << " shot shot_" << shotId << " ";
+                shotId++;
                 std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2  << " "
                     << lastFrame.second << " " << argmax.second << " " << (lastFrame.second + argmax.second) / 2
                     << " " << max << "\n" << std::flush;
@@ -145,6 +148,8 @@ int main(int argc, char** argv) {
             }
             if(distance <= median * 2 || distance < threshold) {
                 aboveMedian = false;
+                std::cout << video.GetShowName() << " " << lastFrame.second << " " << argmax.second << " shot shot_" << shotId << " ";
+                shotId++;
                 std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2 << " "
                     << lastFrame.second << " " << argmax.second << " " << (lastFrame.second + argmax.second) / 2
                     << " " << max << "\n" << std::flush;
@@ -155,6 +160,7 @@ int main(int argc, char** argv) {
     if(lastFrame.first == -1) lastFrame = lastVideoFrame;
     if(lastVideoFrame != lastFrame) {
         argmax = lastVideoFrame;
+        std::cout << video.GetShowName() << " " << lastFrame.second << " " << argmax.second << " shot shot_" << shotId << " ";
         std::cout << lastFrame.first << " " << argmax.first << " " << (lastFrame.first + argmax.first) / 2  << " "
             << lastFrame.second << " " << argmax.second << " " << (lastFrame.second + argmax.second) / 2
             << " " << max << "\n" << std::flush;
