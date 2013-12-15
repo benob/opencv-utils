@@ -39,7 +39,7 @@ namespace amu {
         }
     };
 
-    // file 1 0 6182 U U U S1
+    // BFMTV_BFMStory_2012-01-10_175800 140.40 142.48 shot_16 3510 3562 3536 S18
     struct ShotCluster {
         std::string id;
         std::vector<int> frames;
@@ -49,11 +49,11 @@ namespace amu {
             std::string line;
             while(std::getline(input, line)) {
                 std::stringstream reader(line);
-                std::string dummy, id;
-                int start, duration;
-                reader >> dummy >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
-                ShotCluster& cluster = output[id];
-                cluster.frames.push_back(start + (int) (duration / 2));
+                std::string dummy, cluster_id;
+                int frame;
+                reader >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy >> frame >> cluster_id;
+                ShotCluster& cluster = output[cluster_id];
+                cluster.frames.push_back(frame);
             }
             return output;
         }
@@ -71,25 +71,27 @@ namespace amu {
         static std::vector<amu::ShotSegment> ReadMerged(std::ifstream& input, const amu::Idx& idx) {
             std::vector<amu::ShotSegment> output;
             std::string line;
-            int previousStart = -1;
-            int previousEnd = -1;
+            int previousStart = -1, previousEnd = -1, previousFrame = -1;
             std::string previousId = "";
             while(std::getline(input, line)) {
                 std::stringstream reader(line);
-                std::string dummy, id;
-                int start, duration;
-                reader >> dummy >> dummy >> start >> duration >> dummy >> dummy >> dummy >> id;
-                if(previousId != id && previousStart != -1) {
+                std::string show, shot_id, cluster_id;
+                int start_frame, end_frame, frame;
+                double start_time, end_time;
+                // BFMTV_BFMStory_2012-01-10_175800 140.40 142.48 shot_16 3510 3562 3536 S18
+                reader >> show >> start_time >> end_time >> shot_id >> start_frame >> end_frame >> frame >> cluster_id;
+                if(previousId != cluster_id && previousStart != -1) {
                     //std::cerr << previousStart << " " << previousEnd << " " << previousId << "\n";
-                    output.push_back(amu::ShotSegment(previousStart, previousEnd, 0, idx.GetTime(previousStart), idx.GetTime(previousEnd), 0 ,0));
-                    previousStart = start;
+                    output.push_back(amu::ShotSegment(previousStart, previousEnd, previousFrame, idx.GetTime(previousStart), idx.GetTime(previousEnd), idx.GetTime(previousFrame) ,0, previousId));
+                    previousStart = start_frame;
                 }
-                if(previousStart == -1) previousStart = start;
-                previousEnd = start + duration; 
-                previousId = id;
+                if(previousStart == -1) previousStart = start_frame;
+                previousEnd = end_frame;
+                previousFrame = frame;
+                previousId = cluster_id;
             }
             if(previousStart != -1) {
-                output.push_back(amu::ShotSegment(previousStart, previousEnd, 0, idx.GetTime(previousStart), idx.GetTime(previousEnd), 0 ,0));
+                output.push_back(amu::ShotSegment(previousStart, previousEnd, previousFrame, idx.GetTime(previousStart), idx.GetTime(previousEnd), idx.GetTime(previousFrame) ,0));
             }
             return output;
         }
@@ -108,6 +110,7 @@ namespace amu {
 }
 
 int main(int argc, char** argv) {
+    // TODO: update to keep shot id and cluster id
 
     amu::CommandLine options(argv, "[options]\n");
     options.AddUsage("  --shots <shot-file>               shot segmentation output\n");
@@ -171,7 +174,7 @@ int main(int argc, char** argv) {
             //std::cerr << track->size() << " " << shot->endFrame - shot->startFrame << " " << (double)track->size() / (shot->endFrame - shot->startFrame) << "\n";
             double density = (double)track->size() / (shot->endFrame - shot->startFrame);
             if(track->size() < minDetections || density < minDensity) continue;
-            std::cout << showname << " " << shot->startTime << " " << shot->endTime << " head Inconnu_" << num;
+            std::cout << showname << " " << shot->startTime << " " << shot->endTime << " head " << shot->id << ":Inconnu_" << num;
             for(Track::iterator iterator = track->begin(); iterator != track->end(); iterator++) {
                 const amu::Detection& detection = iterator->second;
                 std::cout << " || frame=" << detection.frame << " x=" << detection.location.x << " y=" << detection.location.y 

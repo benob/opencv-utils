@@ -13,7 +13,33 @@ namespace amu {
         double endTime;
         double time;
         double score;
-        ShotSegment(int _startFrame, int _endFrame, int _frame, double _startTime, double _endTime, double _time, double _score) : startFrame(_startFrame), endFrame(_endFrame), frame(_frame), startTime(_startTime), endTime(_endTime), time(_time), score(_score) { }
+        std::string id;
+        ShotSegment(int _startFrame, int _endFrame, int _frame, double _startTime, double _endTime, double _time, double _score, const std::string& _id = "") : startFrame(_startFrame), endFrame(_endFrame), frame(_frame), startTime(_startTime), endTime(_endTime), time(_time), score(_score), id(_id) { }
+        static std::vector<ShotSegment> Read(std::istream& input) {
+            std::vector<ShotSegment> output;
+            std::string line;
+            while(std::getline(input, line)) {
+                std::stringstream reader(line);
+                std::string dummy, id;
+                int startFrame, endFrame, frame; 
+                double startTime, endTime, time;
+                double score;
+                reader >> dummy >> dummy >> dummy >> dummy >> id >> startFrame >> endFrame >> frame >> startTime >> endTime >> time >> score;
+                ShotSegment shot(startFrame, endFrame, frame, startTime, endTime, time, score, id);
+                output.push_back(shot);
+            }
+            return output;
+        }
+
+        static std::vector<ShotSegment> Read(const std::string& filename) {
+            std::ifstream input(filename.c_str());
+            if(!input) {
+                std::cerr << "ERROR: loading shots from \"" << filename << "\"\n";
+                return std::vector<ShotSegment>();
+            }
+            return Read(input);
+        }
+
         static bool ParseShotSegmentation(std::istream& input, std::vector<ShotSegment>& output) {
             std::string line;
             while(std::getline(input, line)) {
