@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     amu::Split::ParseTemplates(templateFile, templates, scale);
 
     std::vector<amu::ShotSegment> shots;
-    amu::ShotSegment::ParseShotSegmentation(shotsFile, shots);
+    shots = amu::ShotSegment::Read(shotsFile);
 
     amu::LinearClassifier splitClassifier(splitModelFile);
     std::vector<amu::LinearClassifier> models;
@@ -162,6 +162,7 @@ int main(int argc, char** argv) {
 
         int argmax = amu::TemplateMatcher::Match(image, templates, splitType);
         if(argmax != -1) {
+            std::cout << video.GetShowName() << " " << shots[shot].startTime << " " << shots[shot].endTime << " shot-type " << shots[shot].id << " ";
             std::cout << shots[shot].frame << " " << -1 << " " << splitType << "\n";
             for(int i = 0; i < templates[argmax].subshots.size(); i++) {
                 const amu::SubShot subshot = templates[argmax].subshots[i];
@@ -178,6 +179,7 @@ int main(int argc, char** argv) {
                 std::vector<cv::Point> locations;
                 hog.compute(gray, descriptorsValues, cv::Size(0,0), cv::Size(0,0), locations);
 
+                std::cout << video.GetShowName() << " " << shots[shot].startTime << " " << shots[shot].endTime << " shot-type " << shots[shot].id << ":" << i << " ";
                 std::cout << shots[shot].frame << " " << i << " subshot";
                 std::vector<float> features;
                 AddFeatures(splitType, i, video.GetShowName(), descriptorsValues, features);
@@ -188,6 +190,7 @@ int main(int argc, char** argv) {
                 std::cout << " " << subshot.x << " " << subshot.y << " " << subshot.width << " " << subshot.height << "\n";
             }
         } else {
+            std::cout << video.GetShowName() << " " << shots[shot].startTime << " " << shots[shot].endTime << " shot-type " << shots[shot].id << " ";
             std::cout << shots[shot].frame << " " << -1 << " " << splitType;
             std::vector<float> features;
             AddFeatures(splitType, -1, video.GetShowName(), descriptorsValues, features);
