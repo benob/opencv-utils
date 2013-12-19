@@ -356,7 +356,7 @@ namespace amu {
                     time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
                 } else if(type == VideoType_Repere) {
                     index++;
-                    time = RepereExtractKeyframe::repere_decode_frame(repereVideo, index);
+                    time = RepereExtractKeyframe::repere_decode_frame(repereVideo, index + 1);
                     image.create(repereVideo->h_, repereVideo->w_, CV_8UC3);
                     for(int y=0; y < repereVideo->h_; y ++) {
                         for (int x=0; x < repereVideo->w_; x++) {

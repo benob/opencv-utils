@@ -63,6 +63,7 @@ struct RepereExtractKeyframe {
         avcodec_free_frame(&ctx->vframe_);
         avcodec_close(ctx->codecctx);
         avformat_close_input(&ctx->formatctx);
+        sws_freeContext(ctx->img_convert_ctx);
         //memset(ctx, 0, sizeof(ctx));
     }
 
@@ -195,10 +196,13 @@ struct RepereExtractKeyframe {
                     sws_scale(ctx->img_convert_ctx, (const uint8_t * const*)ctx->vframe_->data, ctx->vframe_->linesize, 0, ctx->h_, ctx->image.data, ctx->image.linesize);
                     return;
                 }
+            } else { // fixed memory leak
+                av_free_packet(&packet);
             }
         } 
     }       
 
+    // warning: ids start to 1
     static double repere_decode_frame(repere_video* ctx, int id)
     {
         int i = id-1;

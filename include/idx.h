@@ -89,12 +89,15 @@ namespace amu {
             return loaded;
         }
 
+        // note that in idx, frames start at 1
         int GetFrame(double time) const {
             std::vector<std::pair<double, int> >::const_iterator found = std::lower_bound(time2frame.begin(), time2frame.end(), std::pair<double, int>(time, 0), amu::TimeLess());
-            return found->second;
+            return found->second - 1;
         }
 
+        // note that in idx, frames start at 1
         double GetTime(int frame) const {
+            frame += 1;
             std::vector<std::pair<int, double> >::const_iterator found = std::lower_bound(frame2time.begin(), frame2time.end(), std::pair<double, int>(frame, 0), amu::FrameLess());
             return found->second;
         }
