@@ -358,6 +358,7 @@ namespace amu {
                     index++;
                     time = RepereExtractKeyframe::repere_decode_frame(repereVideo, index + 1);
                     if(time == -1) return false;
+                    time = idx->GetTime(index);
                     image.create(repereVideo->h_, repereVideo->w_, CV_8UC3);
                     for(int y=0; y < repereVideo->h_; y ++) {
                         for (int x=0; x < repereVideo->w_; x++) {

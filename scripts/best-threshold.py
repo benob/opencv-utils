@@ -28,9 +28,9 @@ for i in range(len(examples) - 1):
     num_hyp -= 1
     if examples[i][0] == True:
         num_correct -= 1
-    p = num_correct / num_hyp
-    r = num_correct / num_ref
-    f = 2 * p * r / (p + r)
+    p = num_correct / num_hyp if num_hyp != 0 else 0
+    r = num_correct / num_ref if num_ref != 0 else 0
+    f = 2 * p * r / (p + r) if p + r != 0 else 0
     #print examples[i][1], f, p, r
     if f > max_f:
         max_f = f

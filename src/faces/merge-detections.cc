@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     if(options.Size() != 0 || (shotFilename == "" && clusteringFilename == "") || detectionFilename == "" || (clusteringFilename != "" && idxFilename == "")) options.Usage();
     std::vector<amu::ShotSegment> shots;
     if(shotFilename != "") {
-        amu::ShotSegment::ParseShotSegmentation(shotFilename, shots);
+        shots = amu::ShotSegment::Read(shotFilename);
     } else {
         amu::Idx idx(idxFilename);
         shots = amu::ShotCluster::ReadMerged(clusteringFilename, idx);
