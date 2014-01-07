@@ -332,6 +332,7 @@ namespace amu {
             bool ReadFrame(cv::Mat& resized, int interpolation = cv::INTER_LANCZOS4) {
                 if(endTime != -1 && time >= endTime) return false;
                 if(endFrame != -1 && index >= endFrame) return false;
+                if(videoFinished) return false;
                 cv::Mat image;
                 if(type == VideoType_ImageList) {
                     if(currentImage == images.end()) {
@@ -357,7 +358,10 @@ namespace amu {
                 } else if(type == VideoType_Repere) {
                     index++;
                     time = RepereExtractKeyframe::repere_decode_frame(repereVideo, index + 1);
-                    if(time == -1) return false;
+                    if(time == -1) {
+                        videoFinished = true;
+                        return false;
+                    }
                     time = idx->GetTime(index);
                     image.create(repereVideo->h_, repereVideo->w_, CV_8UC3);
                     for(int y=0; y < repereVideo->h_; y ++) {

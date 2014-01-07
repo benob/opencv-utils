@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
     int shotId = 0;
 
     while(video.HasNext() || distances.size() > 0) {
-        if(video.ReadFrame(image)) {
+        if(video.HasNext() && video.ReadFrame(image)) {
             if(lastFrame.first == -1) lastFrame = std::pair<int, double>(video.GetIndex(), video.GetTime());
             if(lastVideoFrame.first != -1 && video.GetIndex() - lastVideoFrame.first > 10) { // reset
                 argmax = lastVideoFrame;

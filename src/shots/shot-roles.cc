@@ -85,9 +85,11 @@ int main(int argc, char** argv) {
     amu::CommandLine options(argv, "[options]\n");
     options.AddUsage("  --shots <shots-file>              shot segmentation (exclusive with --annotations)\n");
     options.AddUsage("  --annotations <annotation-file>   shot reference annotations (exclusive with --shots)\n");
+    options.AddUsage("  --labels-only                     only output labels\n");
 
     std::string shotFile = options.Get<std::string>("--shots", "");
     std::string annotationFile = options.Get<std::string>("--annotations", "");
+    bool labelsOnly = options.IsSet("--labels-only");
 
     amu::VideoReader video;
     if(!video.Configure(options)) return 1;
@@ -103,22 +105,28 @@ int main(int argc, char** argv) {
         }
     }
 
-    amu::FeatureExtractor extractor;
-
-    cv::Mat image;
-    for(std::map<int, amu::ShotRole>::const_iterator shot = shotRoles.begin(); shot != shotRoles.end(); shot++) {
-        video.Seek(shot->first);
-        if(!video.ReadFrame(image) || image.empty()) {
-            std::cerr << "ERROR: reading frame " << video.GetIndex() << "\n";
-            continue;
+    if(labelsOnly) {
+        for(std::map<int, amu::ShotRole>::const_iterator shot = shotRoles.begin(); shot != shotRoles.end(); shot++) {
+            std::cout << shot->second.label << "\n";
         }
-        std::vector<float> features = extractor.Compute(image);
+    } else {
+        amu::FeatureExtractor extractor;
 
-        std::cout << shot->second.label;
-        for(size_t i = 0; i < features.size(); i++) {
-            std::cout << " " << i + 1 << ":" << features[i];
+        cv::Mat image;
+        for(std::map<int, amu::ShotRole>::const_iterator shot = shotRoles.begin(); shot != shotRoles.end(); shot++) {
+            video.Seek(shot->first);
+            if(!video.ReadFrame(image) || image.empty()) {
+                std::cerr << "ERROR: reading frame " << video.GetIndex() << "\n";
+                continue;
+            }
+            std::vector<float> features = extractor.Compute(image);
+
+            std::cout << shot->second.label;
+            for(size_t i = 0; i < features.size(); i++) {
+                std::cout << " " << i + 1 << ":" << features[i];
+            }
+            std::cout << "\n";
         }
-        std::cout << "\n";
     }
     return 0;
 }
