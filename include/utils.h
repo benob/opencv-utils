@@ -82,4 +82,51 @@ namespace amu {
         return output;
     }
 
+    template <class T>
+    T Parse(const std::string& text) {
+        T output;
+        std::stringstream parser(text);
+        parser >> output;
+        return output;
+    }
+
+    template <class T>
+    std::string ToString(T value) {
+        std::stringstream text;
+        text << value;
+        return text.str();
+    }
+
+    template <class T>
+    void Tokenize(const std::string& str, std::vector<T>& tokens, const std::string& delimiters = " ") {
+        std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+        std::string::size_type pos     = str.find_first_of(delimiters, lastPos);
+        tokens.clear();
+        while (std::string::npos != pos || std::string::npos != lastPos)
+        {
+            tokens.push_back(Parse<T>(str.substr(lastPos, pos - lastPos)));
+            lastPos = str.find_first_not_of(delimiters, pos);
+            pos = str.find_first_of(delimiters, lastPos);
+        }
+    }
+
+    template <class T>
+    std::vector<T> Tokenize(const std::string& input, const std::string& delimiters = " ") {
+        std::vector<T> output;
+        Tokenize(input, output, delimiters);
+        return output;
+    }
+
+    template <class T>
+    std::string Join(const std::vector<T>& input, const std::string& delimiter = " ") {
+        std::stringstream output;
+        if(input.size() == 0) return "";
+        output << input[0];
+        for(size_t i = 1; i < input.size(); i++) {
+            output << delimiter;
+            output << input[i];
+        }
+        return output.str();
+    }
+
 }

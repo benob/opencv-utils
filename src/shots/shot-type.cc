@@ -2,11 +2,14 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "shot-features.h"
+#include "classify.h"
 
 int main(int argc, char** argv) {
     amu::CommandLine options(argv, "[options]\n");
     options.AddUsage("  --shots <shots-file>              shot segmentation (exclusive with --annotations)\n");
     options.AddUsage("  --annotations <annotation-file>   shot reference annotations (exclusive with --shots)\n");
+    // TODO i was here
+    //options.AddUsage("  --multi <frames-per-shot>   shot reference annotations (exclusive with --shots)\n");
 
     std::string shotFile = options.Get<std::string>("--shots", "");
     std::string annotationFile = options.Get<std::string>("--annotations", "");
@@ -26,6 +29,7 @@ int main(int argc, char** argv) {
     }
 
     amu::FeatureExtractor extractor;
+    amu::LibLinearClassifier classifier("model");
 
     cv::Mat image;
     for(std::map<int, amu::ShotType>::const_iterator shot = shotTypes.begin(); shot != shotTypes.end(); shot++) {
@@ -35,6 +39,7 @@ int main(int argc, char** argv) {
             continue;
         }
         std::vector<float> features = extractor.Compute(image);
+        std::cerr << shot->second.label << " " << classifier.Classify(features) << "\n";
 
         std::cout << shot->second.label;
         for(size_t i = 0; i < features.size(); i++) {

@@ -105,10 +105,10 @@ namespace amu {
                     }
                 }
 
-                for(size_t i = 0; i < shows.size(); i++) {
+                /*for(size_t i = 0; i < shows.size(); i++) {
                     if(showname == shows[i]) features.push_back(1);
                     else features.push_back(-1);
-                }
+                }*/
 
                 return features;
             }
