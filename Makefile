@@ -1,4 +1,4 @@
-OPT:=-O0
+OPT:=-O3
 CXXFLAGS:=`pkg-config opencv --cflags` -I. -Iinclude -g -MMD -Wall $(OPT) #-flto
 LDFLAGS:=-Wl,--as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto -lcurses -lfann
 CXX=clang++

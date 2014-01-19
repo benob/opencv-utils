@@ -183,7 +183,7 @@ namespace amu {
                 }
                 std::ifstream input(filename.c_str());
                 if(!input) {
-                    std::cerr << "ERROR: loading label mapping from \"" << filename << "\"\n";
+                    std::cerr << "ERROR: loading model from \"" << filename << "\"\n";
                     return false;
                 }
                 return Load(input);
@@ -192,6 +192,7 @@ namespace amu {
             void ComputeScores(const std::vector<float>& descriptors, std::vector<double>& scores) const {
                 scores.clear();
                 scores.resize(numLabels, 0.0);
+                if(!loaded) return;
                 for(size_t label = 0; label < numLabels; label++) {
                     for(size_t descriptor = 0; descriptor < numFeatures; descriptor++) {
                         scores[label] += weights[label][descriptor] * descriptors[descriptor];
@@ -208,6 +209,7 @@ namespace amu {
             }
 
             std::pair<std::string, double> ClassifyAndScore(const std::vector<float>& descriptors) const {
+                if(!loaded) return std::pair<std::string, double>("", 0);
                 double max = 0, min = 0, sum = 0;
                 int argmax = -1;
                 std::vector<double> scores;

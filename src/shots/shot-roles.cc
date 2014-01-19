@@ -96,6 +96,7 @@ int main(int argc, char** argv) {
     options.AddUsage("  --labels-only                     only output labels\n");
     options.AddUsage("  --model-stem <liblinear-model>    predict using model\n");
     options.AddUsage("  --display                         display classified frames\n");
+    options.AddUsage("  --predict-show-only               only load show prediction model\n");
 
     std::string shotFile = options.Get<std::string>("--shots", "");
     std::string annotationFile = options.Get<std::string>("--annotations", "");
@@ -104,6 +105,7 @@ int main(int argc, char** argv) {
     bool labelsOnly = options.IsSet("--labels-only");
     std::string modelFilename = options.Get<std::string>("--model-stem", "");
     bool display = options.IsSet("--display");
+    bool predictShowOnly = options.IsSet("--predict-show-only");
 
     amu::VideoReader video;
     if(!video.Configure(options)) return 1;
@@ -123,16 +125,19 @@ int main(int argc, char** argv) {
             shotRoles[shots[i].frame] = amu::ShotRole(video.GetShowName(), shots[i].frame, "other:");
         }
     }
+    std::map<std::string, double> predictedShow;
     std::map<std::string, amu::LibLinearClassifier> classifiers;
     if(modelFilename != "") {
         std::string model;
-        model = "role"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
-        model = "role:mixed"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
-        model = "role:other"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
-        model = "role:set"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
-        model = "role:report"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
         model = "show"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
-        model = "type"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+        if(!predictShowOnly) {
+            model = "role"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+            model = "role:mixed"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+            model = "role:other"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+            model = "role:set"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+            model = "role:report"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+            model = "type"; classifiers[model] = amu::LibLinearClassifier(modelFilename + "." + model + "-model" , modelFilename + "." + model + "-labels");
+        }
     }
 
     if(labelsOnly) {
@@ -143,56 +148,106 @@ int main(int argc, char** argv) {
         amu::FeatureExtractor extractor;
 
         cv::Mat image;
-        for(std::map<int, amu::ShotRole>::const_iterator shot = shotRoles.begin(); shot != shotRoles.end(); shot++) {
-            int shotStart = shot->second.frame;
-            int shotEnd = shot->second.frame;
-            if(multi > 1) {
-                for(size_t i = 0; i < shots.size(); i++) {
-                    if(shots[i].startFrame <= shot->first && shots[i].endFrame > shot->first) {
-                        shotStart = shots[i].startFrame;
-                        shotEnd = shots[i].endFrame;
-                        break;
+        if(annotationFile != "") {
+            for(std::map<int, amu::ShotRole>::const_iterator shot = shotRoles.begin(); shot != shotRoles.end(); shot++) {
+                int shotStart = shot->second.frame;
+                int shotEnd = shot->second.frame;
+                if(multi > 1) {
+                    for(size_t i = 0; i < shots.size(); i++) {
+                        if(shots[i].startFrame <= shot->first && shots[i].endFrame > shot->first) {
+                            shotStart = shots[i].startFrame;
+                            shotEnd = shots[i].endFrame;
+                            break;
+                        }
+                    }
+                }
+                double step = (shotEnd - shotStart) / (multi + 1.0);
+                double frame = shotStart + step;
+                int num = 0;
+                std::map<std::string, amu::CumulativeDecision> decisions;
+                do {
+                    video.Seek((int) frame);
+                    if(!video.ReadFrame(image) || image.empty()) {
+                        std::cerr << "ERROR: reading frame " << video.GetIndex() << "\n";
+                        continue;
+                    }
+                    std::vector<float> features = extractor.Compute(image);
+                    if(classifiers.size() > 0) {
+                        for(std::map<std::string, amu::LibLinearClassifier>::const_iterator classifier = classifiers.begin(); classifier != classifiers.end(); classifier++) {
+                            decisions[classifier->first].Add(classifier->second.ClassifyAndScore(features).first);
+                        }
+                    } else {
+                        std::cout << shot->second.label;
+                        for(size_t i = 0; i < features.size(); i++) {
+                            std::cout << " " << i + 1 << ":" << features[i];
+                        }
+                        std::cout << "\n";
+                    }
+                    frame += step;
+                    num++;
+                } while(num < multi && frame < shotEnd);
+                if(classifiers.size() > 0) {
+                    if(display) {
+                        video.Seek(shot->second.frame);
+                        video.ReadFrame(image);
+                    }
+                    std::cout << video.GetShowName() << " " << shot->second.frame;
+                    std::cout << " " << decisions["show"].Best().first << " " << decisions["type"].Best().first;
+                    std::cout << decisions["role:" + decisions["type"].Best().first].Best().first;
+                    //std::cout << " " << shot->second.label;
+                    std::cout << "\n";
+                    if(display) {
+                        cv::imshow("shot", image);
+                        cv::waitKey(0);
                     }
                 }
             }
-            double step = (shotEnd - shotStart) / (multi + 1.0);
-            double frame = shotStart + step;
-            int num = 0;
-            std::map<std::string, amu::CumulativeDecision> decisions;
-            do {
-                video.Seek((int) frame);
-                if(!video.ReadFrame(image) || image.empty()) {
-                    std::cerr << "ERROR: reading frame " << video.GetIndex() << "\n";
-                    continue;
-                }
-                std::vector<float> features = extractor.Compute(image);
-                if(classifiers.size() > 0) {
+        } else {
+            for(std::vector<amu::ShotSegment>::const_iterator shot = shots.begin(); shot != shots.end(); shot++) {
+                int shotStart = shot->startFrame;
+                int shotEnd = shot->endFrame;
+                if(multi <= 1) shotStart = shotEnd = shot->frame;
+                double step = (shotEnd - shotStart) / (multi + 1.0);
+                double frame = shotStart + step;
+                int num = 0;
+                std::map<std::string, amu::CumulativeDecision> decisions;
+                do {
+                    video.Seek((int) frame);
+                    if(!video.ReadFrame(image) || image.empty()) {
+                        std::cerr << "ERROR: reading frame " << video.GetIndex() << "\n";
+                        continue;
+                    }
+                    std::vector<float> features = extractor.Compute(image);
                     for(std::map<std::string, amu::LibLinearClassifier>::const_iterator classifier = classifiers.begin(); classifier != classifiers.end(); classifier++) {
                         decisions[classifier->first].Add(classifier->second.ClassifyAndScore(features).first);
                     }
-                } else {
-                    std::cout << shot->second.label;
-                    for(size_t i = 0; i < features.size(); i++) {
-                        std::cout << " " << i + 1 << ":" << features[i];
+                    frame += step;
+                    num++;
+                } while(num < multi && frame < shotEnd);
+                if(classifiers.size() > 0) {
+                    if(display) {
+                        video.Seek(shot->frame);
+                        video.ReadFrame(image);
                     }
-                    std::cout << "\n";
+                    if(!predictShowOnly) {
+                        std::cout << video.GetShowName() << " " << shot->startTime << " " << shot->endTime << " " << "shot-type" << " " << shot->id;
+                        std::cout << " " << decisions["show"].Best().first << " " << decisions["type"].Best().first;
+                        std::cout << decisions["role:" + decisions["type"].Best().first].Best().first;
+                        //std::cout << " " << shot->second.label;
+                        std::cout << "\n";
+                    } else {
+                        predictedShow[decisions["show"].Best().first] ++;
+                    }
+                    if(display) {
+                        cv::imshow("shot", image);
+                        cv::waitKey(0);
+                    }
                 }
-                frame += step;
-                num++;
-            } while(num < multi && frame < shotEnd);
-            if(classifiers.size() > 0) {
-                if(display) {
-                    video.Seek(shot->second.frame);
-                    video.ReadFrame(image);
-                }
-                std::cout << video.GetShowName() << " " << shot->second.frame;
-                std::cout << " " << decisions["show"].Best().first << ":" << decisions["type"].Best().first;
-                std::cout << decisions["role:" + decisions["type"].Best().first].Best().first;
-                //std::cout << " " << shot->second.label;
-                std::cout << "\n";
-                if(display) {
-                    cv::imshow("shot", image);
-                    cv::waitKey(0);
+
+            }
+            if(predictShowOnly) {
+                for(std::map<std::string, double>::const_iterator i = predictedShow.begin(); i != predictedShow.end(); i++) {
+                    std::cout << i->first << " " << i->second / shots.size() << "\n";
                 }
             }
 
