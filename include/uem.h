@@ -75,6 +75,10 @@ namespace amu {
                 return found == segments.end() || !(found->start <= time && found->end >= time);
             }
 
+            bool IsInvalid(double time) const {
+                return IsInvalid(GetIterator(time), time);
+            }
+
             bool HasNext(const Iterator found) const {
                 Iterator next = found;
                 if(next == segments.end()) return false;

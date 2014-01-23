@@ -97,6 +97,7 @@ int main(int argc, char** argv) {
     options.AddUsage("  --model-stem <liblinear-model>    predict using model\n");
     options.AddUsage("  --display                         display classified frames\n");
     options.AddUsage("  --predict-show-only               only load show prediction model\n");
+    options.AddUsage("  --restrict-to-uem <uem>           only predict inside given uem\n");
 
     std::string shotFile = options.Get<std::string>("--shots", "");
     std::string annotationFile = options.Get<std::string>("--annotations", "");
@@ -106,6 +107,7 @@ int main(int argc, char** argv) {
     std::string modelFilename = options.Get<std::string>("--model-stem", "");
     bool display = options.IsSet("--display");
     bool predictShowOnly = options.IsSet("--predict-show-only");
+    std::string uemFilename = options.Get<std::string>("--restrict-to-uem", "");
 
     amu::VideoReader video;
     if(!video.Configure(options)) return 1;
@@ -124,6 +126,10 @@ int main(int argc, char** argv) {
         for(size_t i = 0; i < shots.size(); i++) {
             shotRoles[shots[i].frame] = amu::ShotRole(video.GetShowName(), shots[i].frame, "other:");
         }
+    }
+    amu::Uem uem;
+    if(uemFilename != "") {
+        uem.Load(uemFilename, video.GetShowName());
     }
     std::map<std::string, double> predictedShow;
     std::map<std::string, amu::LibLinearClassifier> classifiers;
@@ -204,6 +210,7 @@ int main(int argc, char** argv) {
             }
         } else {
             for(std::vector<amu::ShotSegment>::const_iterator shot = shots.begin(); shot != shots.end(); shot++) {
+                if(uem.Loaded() && uem.IsInvalid(shot->time)) continue;
                 int shotStart = shot->startFrame;
                 int shotEnd = shot->endFrame;
                 if(multi <= 1) shotStart = shotEnd = shot->frame;
@@ -211,11 +218,13 @@ int main(int argc, char** argv) {
                 double frame = shotStart + step;
                 int num = 0;
                 std::map<std::string, amu::CumulativeDecision> decisions;
+                bool errorReadingFrame = false;
                 do {
                     video.Seek((int) frame);
                     if(!video.ReadFrame(image) || image.empty()) {
                         std::cerr << "ERROR: reading frame " << video.GetIndex() << "\n";
-                        continue;
+                        errorReadingFrame = true;
+                        break;
                     }
                     std::vector<float> features = extractor.Compute(image);
                     for(std::map<std::string, amu::LibLinearClassifier>::const_iterator classifier = classifiers.begin(); classifier != classifiers.end(); classifier++) {
@@ -224,6 +233,7 @@ int main(int argc, char** argv) {
                     frame += step;
                     num++;
                 } while(num < multi && frame < shotEnd);
+                if(errorReadingFrame) continue; // skip erroneous shots
                 if(classifiers.size() > 0) {
                     if(display) {
                         video.Seek(shot->frame);
