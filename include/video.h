@@ -342,12 +342,12 @@ namespace amu {
                     image = cv::imread(currentImage->second);
                     index = currentImage->first;
                     if(idx) time = idx->GetTime(index);
-                    currentImage++;
                     if(currentImage != images.end()) currentImageName = currentImage->second;
                     if(image.rows == 0) {
                         std::cerr << "ERROR: could not read " << currentImage->second << "\n";
                         return false;
                     }
+                    currentImage++;
                 } else if(type == VideoType_Video) {
                     index = video.get(CV_CAP_PROP_POS_FRAMES);
                     if(video.read(image) == false || image.empty() || image.rows == 0) {

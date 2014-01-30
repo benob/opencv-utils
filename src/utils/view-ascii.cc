@@ -21,7 +21,7 @@ const char* mapping[256] = {
 "∩", "≡", "±", "≥", "≤", "⌠", "⌡", "÷", "≈", "°", "∙", "·", "√", "ⁿ", "²", "■"
 };
 
-inline int bgr2ansi(cv::Vec3b color) {
+/*inline int bgr2ansi(cv::Vec3b color) {
     if(fabs(color[2] - color[1]) + fabs(color[2] - color[0]) + fabs(color[1] - color[0]) < 12)
         return (color[0] + color[1] + color[2]) * 24 / (3 * 256) + 232;
     int r2 = color[2] * 6 / 256;
@@ -42,6 +42,62 @@ inline cv::Vec3b ansi2bgr(int color) {
         int intensity = (color - 232) * 24; 
         return cv::Vec3b(intensity, intensity, intensity);
     }
+}*/
+
+cv::Vec3b ansi2bgr(unsigned int i) {
+    unsigned int color_red, color_green, color_blue;
+    //i = i % 16;
+    if(i < 16) {
+        color_blue = (i & 4) ? 0xc000 : 0;
+        color_green = (i & 2) ? 0xc000 : 0;
+        color_red = (i & 1) ? 0xc000 : 0;
+        if (i > 7) {
+            color_blue += 0x3fff;
+            color_green += 0x3fff;
+            color_red += 0x3fff;
+        }
+    } else if (i < 232) {
+        int j = i - 16;
+        int r = j / 36, g = (j / 6) % 6, b = j % 6;
+        int red =   (r == 0) ? 0 : r * 40 + 55;
+        int green = (g == 0) ? 0 : g * 40 + 55;
+        int blue =  (b == 0) ? 0 : b * 40 + 55;
+        color_red   = red | red << 8  ;
+        color_green = green | green << 8;
+        color_blue  = blue | blue << 8;
+    } else {
+        i = i & 0xff;
+        int shade = 8 + (i - 232) * 10;
+        color_red = color_green = color_blue = shade | shade << 8;
+    }
+    //std::cerr << (int)i << " b=" << (int)color_blue << " g=" << (int)color_green << " r=" << (int)color_red << "\n";
+    return cv::Vec3b(color_blue >> 8, color_green >> 8, color_red >> 8);
+}
+
+std::vector<cv::Vec3b> makePalette() {
+    std::vector<cv::Vec3b> output;
+    for(int i = 0; i < 256; i++) output.push_back(ansi2bgr(i));
+    return output;
+}
+
+std::vector<cv::Vec3b> palette = makePalette();
+
+int bgr2ansi(cv::Vec3b color) {
+    int argmin = -1;
+    int min = 0;
+    for(int i = 0; i < 256; i++) {
+        int b = color[0] - (int)palette[i][0];
+        int g = color[1] - (int)palette[i][1];
+        int r = color[2] - (int)palette[i][2];
+        int distance = r * r + b * b + g * g;
+        //int distance = abs(r) + abs(b) + abs(g);
+        //std::cerr << i << " " << color << " " << palette[i] << " " << distance << "\n";
+        if(argmin == -1 || distance < min) {
+            min = distance;
+            argmin = i;
+        }
+    }
+    return argmin;
 }
 
 inline int bgr2ansi(cv::Scalar color) {
@@ -214,8 +270,12 @@ int main(int argc, char** argv) {
                 if(method == 1) {
                     cv::threshold(gray(rect), binarized, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
                     found = bestMatch(binarized);
-                    fg = bgr2ansi(cv::mean(resized(rect), binarized));
-                    bg = bgr2ansi(cv::mean(resized(rect), ~binarized));
+                    if(cv::countNonZero(~binarized) < 1) {
+                        fg = bg = bgr2ansi(cv::mean(resized(rect)));
+                    } else {
+                        fg = bgr2ansi(cv::mean(resized(rect), binarized));
+                        bg = bgr2ansi(cv::mean(resized(rect), ~binarized));
+                    }
                 } else if(method == 2) {
                     found = bestMatch2(resized(rect), fg, bg);
                 } else if(method == 3) {
