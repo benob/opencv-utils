@@ -46,7 +46,7 @@ namespace amu {
 
         void Find(const std::string& _name, std::vector<Node*> &output, const std::string& attribute = "", const std::string& value = "") {
             if(name == _name) {
-                if(attribute == "" || attributes[attribute] == value) {
+                if(attribute == "" || (value == "" && attributes.find(attribute) != attributes.end()) || attributes[attribute] == value) {
                     output.push_back(this);
                 }
             }
