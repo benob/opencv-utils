@@ -1,7 +1,8 @@
 OPT:=-O3
 CXXFLAGS:=`pkg-config opencv --cflags` -I. -Iinclude -g -MMD -Wall $(OPT) #-flto
-LDFLAGS:=-Wl,--as-needed -lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto -lcurses -lfann
-CXX=clang++
+#CXXFLAGS+=-DUSE_REPERE_EXTRACT_KEYFRAME
+LDFLAGS:=-lavcodec -lavformat -lavutil -lswscale `pkg-config opencv --libs` -lm -lexpat -ltesseract -flto -lcurses -lfann
+CXX=g++
 
 PROGS:=extract-features-ref make-ref predict-bow shot-boundary-detector view-shot-boundaries subshot-detector temporal-median tess-ocr train-bow haar-detector view-ascii hog-view extract-hog cumulative-gradients subshot-from-template extract-hog-subshot track-faces-in-shots get-hog-training-data detect-from-hog get-hog-extra-negatives classify-hog-subshot detector-performance get-hog-fddb tracker-from-detections merge-detections simple-detector view-shot-clustering play-video shot-type shot-roles view-detections hog+ann-detector create-xgtf-images
 
@@ -15,7 +16,7 @@ bundle-dir: $(addprefix bin-with-libs/,$(PROGS))
 clean:
 	rm -rf .compile/* bin/* bin-with-libs
 
-MAKEFLAGS+=-s -j$(shell grep ^processor /proc/cpuinfo |wc -l)
+#MAKEFLAGS+=-s -j$(shell grep ^processor /proc/cpuinfo |wc -l)
 GIT_VERSION:=$(shell git describe --abbrev=6 --dirty --always)
 CXXFLAGS+="-DVERSION=\"$(GIT_VERSION), $(shell date)\""
 

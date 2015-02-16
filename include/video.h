@@ -16,7 +16,9 @@
 #include "uem.h"
 #include "commandline.h"
 #include "utils.h"
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
 #include "librepere.h"
+#endif
 
 namespace amu {
 
@@ -38,7 +40,9 @@ namespace amu {
             bool videoFinished;
             int endFrame;
             int endTime;
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
             RepereExtractKeyframe::repere_video* repereVideo;
+#endif
 
             std::map<int, std::string> images;
             std::map<int, std::string>::iterator currentImage;
@@ -46,7 +50,10 @@ namespace amu {
             cv::VideoCapture video;
 
         public:
-            VideoReader(const std::string& filename = "", const std::string& dirname = "") : idx(NULL), index(0), time(0), loaded(false), type(VideoType_None), frameSkip(0), deinterlace(false), size(0, 0), videoFinished(true), endFrame(-1), endTime(-1), repereVideo(NULL) {
+            VideoReader(const std::string& filename = "", const std::string& dirname = "") : idx(NULL), index(0), time(0), loaded(false), type(VideoType_None), frameSkip(0), deinterlace(false), size(0, 0), videoFinished(true), endFrame(-1), endTime(-1) {
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
+                repereVideo = NULL;
+#endif
                 if(filename != "") {
                     if(dirname != "") {
                         LoadImageList(filename, dirname);
@@ -125,11 +132,16 @@ namespace amu {
                 if(imageList != "") LoadImageList(imageList, imageDir);
                 else if(video != "") LoadVideo(video);
                 else if(repereVideoFilename != "") {
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                     if(idx == "") {
                         std::cerr << "ERROR: you must specify an idx with a repere video\n";
                         return false;
                     }
                     LoadRepereVideo(repereVideoFilename, idx);
+#else
+                    std::cerr << "ERROR: support for --repere-video not compiled in (try -DUSE_REPERE_EXTRACT_KEYFRAME)\n";
+                    return false;
+#endif
                 }
 
                 if(idx != "") LoadIdx(idx);
@@ -184,6 +196,7 @@ namespace amu {
                 return true;
             }
 
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
             bool LoadRepereVideo(const std::string& filename, const std::string& idxFilename) {
                 av_register_all();
                 repereVideo = RepereExtractKeyframe::repere_open(filename.c_str(), idxFilename.c_str());
@@ -194,6 +207,7 @@ namespace amu {
                 videoFinished = false;
                 return true;
             }
+#endif
 
             bool LoadIdx(const std::string& filename) {
                 idx = new Idx(filename);
@@ -223,8 +237,10 @@ namespace amu {
                             lastReadSize = image.size();
                         }
                         return lastReadSize;
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                     } else if(type == VideoType_Repere) {
                         return cv::Size(repereVideo->w_, repereVideo->h_);
+#endif
                     }
                 }
                 return size;
@@ -247,7 +263,9 @@ namespace amu {
             int NumFrames() {
                 if(type == VideoType_Video) return video.get(CV_CAP_PROP_FRAME_COUNT);
                 else if(type == VideoType_ImageList) return images.size();
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                 else if(type == VideoType_Repere) return repereVideo->local_index_size;
+#endif
                 return 0;
             }
 
@@ -274,8 +292,10 @@ namespace amu {
                     this->index = video.get(CV_CAP_PROP_POS_FRAMES);
                     this->time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
                     return result;
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                 } else if(type == VideoType_Repere) {
                     return Seek(idx->GetFrame(time));
+#endif
                 }
                 return false;
             }
@@ -299,10 +319,12 @@ namespace amu {
                     this->index = video.get(CV_CAP_PROP_POS_FRAMES);
                     this->time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
                     return true;
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                 } else if(type == VideoType_Repere) {
                     if(frame < 0 || frame >= repereVideo->local_index_size) return false;
                     index = frame - 1;
                     return true;
+#endif
                 }
                 return false;
             }
@@ -315,8 +337,10 @@ namespace amu {
                     return currentImage != images.end() && other != images.end();
                 } else if(type == VideoType_Video) {
                     return GetIndex() + 1 < NumFrames();
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                 } else if(type == VideoType_Repere) {
                     return index >= -1 && index < repereVideo->local_index_size - 1;
+#endif
                 }
                 return false;
             }
@@ -355,6 +379,7 @@ namespace amu {
                         return false;
                     }
                     time = video.get(CV_CAP_PROP_POS_MSEC) / 1000.0;
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                 } else if(type == VideoType_Repere) {
                     index++;
                     time = RepereExtractKeyframe::repere_decode_frame(repereVideo, index + 1);
@@ -371,6 +396,7 @@ namespace amu {
                             image.at<cv::Vec3b>(y, x)[2] = repereVideo->image.data[0][y * repereVideo->w_ * 3 + x * 3 + 0];
                         }
                     }
+#endif
                 }
                 if(deinterlace) {
                     for(int i = 0; i < image.rows - 1; i += 2) {
@@ -401,7 +427,9 @@ namespace amu {
 
             ~VideoReader() {
                 if(idx != NULL) delete idx;
+#ifdef USE_REPERE_EXTRACT_KEYFRAME
                 if(repereVideo != NULL) RepereExtractKeyframe::repere_close(repereVideo);
+#endif
             }
     };
 
